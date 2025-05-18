@@ -28,7 +28,7 @@ const Navbar = () => {
               <Link to="/list-project" className="text-gray-700 hover:text-lebanese-green inline-flex items-center px-1 pt-1 text-sm font-medium">
                 List Project
               </Link>
-              <Link to="#" className="text-gray-700 hover:text-lebanese-green inline-flex items-center px-1 pt-1 text-sm font-medium">
+              <Link to="/about" className="text-gray-700 hover:text-lebanese-green inline-flex items-center px-1 pt-1 text-sm font-medium">
                 About
               </Link>
             </div>
@@ -103,7 +103,7 @@ const Navbar = () => {
               List Project
             </Link>
             <Link
-              to="#"
+              to="/about"
               className="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800"
               onClick={() => setIsMenuOpen(false)}
             >
