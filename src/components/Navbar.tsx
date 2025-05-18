@@ -45,12 +45,16 @@ const Navbar = () => {
                 className="pl-10 py-2 pr-4 block w-full sm:text-sm border-gray-300 rounded-md focus:ring-lebanese-green focus:border-lebanese-green border"
               />
             </div>
-            <Button variant="outline" className="mr-2 border-lebanese-navy text-lebanese-navy hover:text-lebanese-navy hover:bg-gray-100">
-              Sign In
-            </Button>
-            <Button className="bg-lebanese-navy text-white hover:bg-opacity-90">
-              Register
-            </Button>
+            <Link to="/signin">
+              <Button variant="outline" className="mr-2 border-lebanese-navy text-lebanese-navy hover:text-lebanese-navy hover:bg-gray-100">
+                Sign In
+              </Button>
+            </Link>
+            <Link to="/register">
+              <Button className="bg-lebanese-navy text-white hover:bg-opacity-90">
+                Register
+              </Button>
+            </Link>
           </div>
 
           <div className="flex items-center md:hidden">
@@ -114,8 +118,12 @@ const Navbar = () => {
                 </div>
               </div>
               <div className="ml-3">
-                <div className="text-base font-medium text-gray-800">Sign in</div>
-                <div className="text-sm font-medium text-gray-500">Register</div>
+                <Link to="/signin" onClick={() => setIsMenuOpen(false)}>
+                  <div className="text-base font-medium text-gray-800">Sign in</div>
+                </Link>
+                <Link to="/register" onClick={() => setIsMenuOpen(false)}>
+                  <div className="text-sm font-medium text-gray-500">Register</div>
+                </Link>
               </div>
             </div>
             <div className="mt-3">
