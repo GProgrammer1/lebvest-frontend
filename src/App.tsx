@@ -12,6 +12,11 @@ import ListProject from "./pages/ListProject";
 import SignIn from "./pages/SignIn";
 import Register from "./pages/Register";
 import About from "./pages/About";
+import ForgotPassword from "./pages/ForgotPassword";
+import TermsOfService from "./pages/TermsOfService";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import FAQ from "./pages/FAQ";
+import HowItWorks from "./pages/HowItWorks";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -31,6 +36,11 @@ const App = () => (
           <Route path="/signin" element={<SignIn />} />
           <Route path="/register" element={<Register />} />
           <Route path="/about" element={<About />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/terms-of-service" element={<TermsOfService />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/faq" element={<FAQ />} />
+          <Route path="/how-it-works" element={<HowItWorks />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
