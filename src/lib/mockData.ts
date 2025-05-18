@@ -475,7 +475,7 @@ export const mockInvestments: Investment[] = [
     ],
     aiPrediction: {
       profitPrediction: 15.8,
-      riskAssessment: 'Medium risk with strong potential returns as sustainable tourism grows globally and Lebanon's natural attractions gain recognition.',
+      riskAssessment: "Medium risk with strong potential returns as sustainable tourism grows globally and Lebanon's natural attractions gain recognition.",
       confidenceScore: 75
     },
     fundingStage: 'Series A',
