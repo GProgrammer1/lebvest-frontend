@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import {
@@ -35,8 +34,9 @@ const LandingPage = () => {
                   size="lg"
                   variant="outline"
                   className="bg-transparent text-white border-white hover:bg-white hover:text-lebanese-navy"
+                  asChild
                 >
-                  List Your Project
+                  <Link to="/list-project">List Your Project</Link>
                 </Button>
               </div>
               <div className="flex flex-wrap gap-8 pt-2">
@@ -60,6 +60,7 @@ const LandingPage = () => {
                 </div>
               </div>
             </div>
+            
             <div className="hidden lg:block relative animate-fade-in">
               <div className="absolute -top-10 -right-10 w-72 h-72 bg-lebanese-green rounded-full opacity-20 filter blur-3xl"></div>
               <div className="relative z-10 bg-white rounded-lg p-6 shadow-xl">
@@ -371,8 +372,8 @@ const LandingPage = () => {
             <Button size="lg" className="bg-white text-lebanese-navy hover:bg-gray-100" asChild>
               <Link to="/investments">Start Investing</Link>
             </Button>
-            <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-lebanese-navy">
-              List Your Project
+            <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-lebanese-navy" asChild>
+              <Link to="/list-project">List Your Project</Link>
             </Button>
           </div>
         </div>

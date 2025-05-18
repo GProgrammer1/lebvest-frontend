@@ -25,6 +25,9 @@ const Navbar = () => {
               <Link to="/dashboard" className="text-gray-700 hover:text-lebanese-green inline-flex items-center px-1 pt-1 text-sm font-medium">
                 Dashboard
               </Link>
+              <Link to="/list-project" className="text-gray-700 hover:text-lebanese-green inline-flex items-center px-1 pt-1 text-sm font-medium">
+                List Project
+              </Link>
               <Link to="#" className="text-gray-700 hover:text-lebanese-green inline-flex items-center px-1 pt-1 text-sm font-medium">
                 About
               </Link>
@@ -77,18 +80,28 @@ const Navbar = () => {
             <Link
               to="/investments"
               className="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800"
+              onClick={() => setIsMenuOpen(false)}
             >
               Investments
             </Link>
             <Link
               to="/dashboard"
               className="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800"
+              onClick={() => setIsMenuOpen(false)}
             >
               Dashboard
             </Link>
             <Link
+              to="/list-project"
+              className="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              List Project
+            </Link>
+            <Link
               to="#"
               className="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800"
+              onClick={() => setIsMenuOpen(false)}
             >
               About
             </Link>
