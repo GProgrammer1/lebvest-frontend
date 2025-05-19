@@ -28,7 +28,7 @@ const Navbar = () => {
               <Link to="/list-project" className="text-gray-700 hover:text-lebanese-green inline-flex items-center px-1 pt-1 text-sm font-medium">
                 List Project
               </Link>
-              <Link to="#" className="text-gray-700 hover:text-lebanese-green inline-flex items-center px-1 pt-1 text-sm font-medium">
+             <Link to="/about" className="text-gray-700 hover:text-lebanese-green inline-flex items-center px-1 pt-1 text-sm font-medium">
                 About
               </Link>
             </div>
@@ -45,12 +45,16 @@ const Navbar = () => {
                 className="pl-10 py-2 pr-4 block w-full sm:text-sm border-gray-300 rounded-md focus:ring-lebanese-green focus:border-lebanese-green border"
               />
             </div>
-            <Button variant="outline" className="mr-2 border-lebanese-navy text-lebanese-navy hover:text-lebanese-navy hover:bg-gray-100">
-              Sign In
-            </Button>
-            <Button className="bg-lebanese-navy text-white hover:bg-opacity-90">
-              Register
-            </Button>
+           <Link to="/signin">
+              <Button variant="outline" className="mr-2 border-lebanese-navy text-lebanese-navy hover:text-lebanese-navy hover:bg-gray-100">
+                Sign In
+              </Button>
+            </Link>
+            <Link to="/register">
+              <Button className="bg-lebanese-navy text-white hover:bg-opacity-90">
+                Register
+              </Button>
+            </Link>
           </div>
 
           <div className="flex items-center md:hidden">
