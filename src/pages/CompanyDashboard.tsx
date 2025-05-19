@@ -10,25 +10,13 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Search, Filter } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Search, Users, Filter, BellIcon } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Link } from "react-router-dom";
+import { Badge } from "@/components/ui/badge";
 
 // Mock data for investors
 const mockInvestors = [
@@ -66,16 +54,62 @@ const mockInvestors = [
     portfolioSize: 500000,
     riskLevel: "high",
     sectors: ["healthcare", "technology"],
+    active: true,
   },
+];
+
+// Mock notifications data
+const mockNotifications = [
+  {
+    id: 1,
+    type: "investor_inquiry",
+    title: "New Investor Inquiry",
+    message: "John Smith has expressed interest in your Tech Hub project.",
+    date: "2025-05-15T10:30:00",
+    read: false,
+    investorId: "inv1"
+  },
+  {
+    id: 2,
+    type: "funding_milestone",
+    title: "Funding Milestone Reached",
+    message: "Your Cedar Heights project has reached 50% of its funding goal!",
+    date: "2025-05-14T15:45:00",
+    read: true,
+  },
+  {
+    id: 3,
+    type: "admin_message",
+    title: "Admin Message",
+    message: "Your project submission has been approved.",
+    date: "2025-05-12T09:15:00",
+    read: false,
+  },
+  {
+    id: 4, 
+    type: "investor_request",
+    title: "Investment Request",
+    message: "Sarah Johnson would like to invest $50,000 in your Tech Hub project.",
+    date: "2025-05-10T14:20:00",
+    read: false,
+    investorId: "inv2"
+  },
+  {
+    id: 5,
+    type: "admin_message",
+    title: "Important Platform Update",
+    message: "LebVest has updated its terms of service. Please review the changes.",
+    date: "2025-05-08T11:00:00",
+    read: true,
+  }
 ];
 
 const CompanyDashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
-  const [riskFilter, setRiskFilter] = useState<"all" | "low" | "medium" | "high">("all");
-  const [minPortfolio, setMinPortfolio] = useState<"all" | "50000" | "100000" | "250000" | "500000">("all");
-  const [sectorFilter, setSectorFilter] = useState<
-    "all" | "real_estate" | "technology" | "healthcare" | "startup" | "government_bonds" | "education"
-  >("all");
+  const [riskFilter, setRiskFilter] = useState("");
+  const [minPortfolio, setMinPortfolio] = useState("");
+  const [sectorFilter, setSectorFilter] = useState("");
+  const [notifications, setNotifications] = useState(mockNotifications);
 
   const filteredInvestors = mockInvestors.filter((inv) => {
     if (searchQuery && !inv.name.toLowerCase().includes(searchQuery.toLowerCase())) {
@@ -93,8 +127,30 @@ const CompanyDashboard = () => {
     return true;
   });
 
-  const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(amount);
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(amount);
+  };
+
+  const markAsRead = (notificationId: number) => {
+    setNotifications(notifications.map(notification => 
+      notification.id === notificationId ? { ...notification, read: true } : notification
+    ));
+  };
+
+  const unreadCount = notifications.filter(notification => !notification.read).length;
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
+    }).format(date);
+  };
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -119,6 +175,12 @@ const CompanyDashboard = () => {
               <TabsTrigger value="investors">Find Investors</TabsTrigger>
               <TabsTrigger value="projects">My Projects</TabsTrigger>
               <TabsTrigger value="analytics">Analytics</TabsTrigger>
+              <TabsTrigger value="notifications" className="relative">
+                Notifications
+                {unreadCount > 0 && (
+                  <Badge className="ml-2 bg-red-500 hover:bg-red-600 text-white">{unreadCount}</Badge>
+                )}
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="investors">
@@ -247,10 +309,13 @@ const CompanyDashboard = () => {
                                   </span>
                                 ))}
                               </TableCell>
-                              <TableCell>
-                                <Link to={`/investor-profile/${inv.id}`}>
-                                  <Button variant="outline" size="sm">
-                                    View Profile
+                              <TableCell className="space-x-2">
+                                <Link to={`/investor-profile/${investor.id}`}>
+                                  <Button variant="outline" size="sm">View Profile</Button>
+                                </Link>
+                                <Link to={`/compare-investors/${investor.id}`}>
+                                  <Button variant="outline" size="sm" className="ml-2">
+                                    Compare
                                   </Button>
                                 </Link>
                               </TableCell>
@@ -336,6 +401,73 @@ const CompanyDashboard = () => {
                       </div>
                     </CardContent>
                   </Card>
+                </CardContent>
+              </Card>
+            </TabsContent>
+            
+            <TabsContent value="notifications">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-xl">Notifications</CardTitle>
+                  <CardDescription>
+                    Stay updated on investor inquiries and project updates
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {notifications.length > 0 ? (
+                      notifications.map((notification) => (
+                        <div 
+                          key={notification.id} 
+                          className={`border rounded-lg p-4 transition-colors ${notification.read ? 'bg-white' : 'bg-blue-50'}`}
+                          onClick={() => markAsRead(notification.id)}
+                        >
+                          <div className="flex justify-between items-start">
+                            <h3 className={`text-lg font-medium ${notification.read ? '' : 'text-lebanese-navy'}`}>
+                              {notification.title}
+                              {!notification.read && <span className="ml-2 inline-block w-2 h-2 bg-blue-500 rounded-full"></span>}
+                            </h3>
+                            <span className="text-sm text-gray-500">{formatDate(notification.date)}</span>
+                          </div>
+                          <p className="text-gray-700 mt-1">{notification.message}</p>
+                          <div className="mt-2 flex justify-between items-center">
+                            <div className="space-x-3">
+                              {notification.type === 'investor_inquiry' && (
+                                <Button size="sm" variant="outline" className="text-green-600 border-green-200 hover:bg-green-50">
+                                  Respond
+                                </Button>
+                              )}
+                              {notification.type === 'investor_request' && (
+                                <>
+                                  <Button size="sm" variant="outline" className="text-green-600 border-green-200 hover:bg-green-50">
+                                    Accept
+                                  </Button>
+                                  <Button size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50">
+                                    Decline
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                            {!notification.read && (
+                              <Button size="sm" variant="ghost" onClick={() => markAsRead(notification.id)}>
+                                Mark as read
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-12">
+                        <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                          <BellIcon className="h-8 w-8 text-gray-400" />
+                        </div>
+                        <h3 className="text-lg font-medium text-gray-900">No notifications yet</h3>
+                        <p className="mt-1 text-gray-500 max-w-sm mx-auto">
+                          You'll be notified here when there are updates on your projects or investor inquiries
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
