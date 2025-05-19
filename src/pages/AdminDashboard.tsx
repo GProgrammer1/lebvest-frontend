@@ -11,6 +11,7 @@ import { Search, Users, ShieldAlert, FileText, BarChart4, CheckCircle, AlertCirc
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Link } from "react-router-dom";
 
 // Mock data for users
 const mockUsers = [
@@ -24,10 +25,10 @@ const mockUsers = [
 
 // Mock data for projects
 const mockProjects = [
-  { id: 101, name: "Beirut Tech Hub", company: "Tech Innovations LLC", category: "technology", status: "active", submittedDate: "2023-06-30" },
-  { id: 102, name: "Cedar Heights Residences", company: "Cedar Investments", category: "real_estate", status: "pending_review", submittedDate: "2023-08-10" },
-  { id: 103, name: "Sustainable Agriculture Initiative", company: "Green Fields Co.", category: "agriculture", status: "rejected", submittedDate: "2023-07-22" },
-  { id: 104, name: "Education Tech Platform", company: "EduLearn", category: "education", status: "active", submittedDate: "2023-09-05" }
+  { id: "project1", name: "Beirut Tech Hub", company: "Tech Innovations LLC", category: "technology", status: "pending_review", submittedDate: "2023-06-30" },
+  { id: "project2", name: "Cedar Heights Residences", company: "Cedar Investments", category: "real_estate", status: "pending_review", submittedDate: "2023-08-10" },
+  { id: "project3", name: "Sustainable Agriculture Initiative", company: "Green Fields Co.", category: "agriculture", status: "rejected", submittedDate: "2023-07-22" },
+  { id: "project4", name: "Education Tech Platform", company: "EduLearn", category: "education", status: "active", submittedDate: "2023-09-05" }
 ];
 
 // Mock metrics
@@ -340,16 +341,32 @@ const AdminDashboard = () => {
                               <TableCell>{getStatusBadge(project.status)}</TableCell>
                               <TableCell>{new Date(project.submittedDate).toLocaleDateString()}</TableCell>
                               <TableCell className="space-x-2">
-                                <Button variant="outline" size="sm">Review</Button>
+                                <Button variant="outline" size="sm" asChild>
+                                  <Link to={`/project-review/${project.id}`}>Review</Link>
+                                </Button>
                                 {project.status === "pending_review" && (
                                   <>
-                                    <Button variant="outline" size="sm" className="border-green-200 hover:border-green-300 hover:bg-green-50">
-                                      <CheckCircle className="mr-1 h-3 w-3" />
-                                      Approve
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm" 
+                                      className="border-green-200 hover:border-green-300 hover:bg-green-50"
+                                      asChild
+                                    >
+                                      <Link to={`/project-review/${project.id}`}>
+                                        <CheckCircle className="mr-1 h-3 w-3" />
+                                        Approve
+                                      </Link>
                                     </Button>
-                                    <Button variant="outline" size="sm" className="border-red-200 hover:border-red-300 hover:bg-red-50">
-                                      <AlertCircle className="mr-1 h-3 w-3" />
-                                      Reject
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm" 
+                                      className="border-red-200 hover:border-red-300 hover:bg-red-50"
+                                      asChild
+                                    >
+                                      <Link to={`/project-review/${project.id}`}>
+                                        <AlertCircle className="mr-1 h-3 w-3" />
+                                        Reject
+                                      </Link>
                                     </Button>
                                   </>
                                 )}

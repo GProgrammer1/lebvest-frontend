@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { UserIcon, Building2Icon, ShieldIcon } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
@@ -14,6 +16,7 @@ const SignIn = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedRole, setSelectedRole] = useState("investor");
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -23,11 +26,19 @@ const SignIn = () => {
     try {
       // Mock authentication - would be replaced with real authentication
       await new Promise((resolve) => setTimeout(resolve, 1000));
+      
       toast({
         title: "Success!",
-        description: "You have been signed in.",
+        description: `You have been signed in as ${selectedRole}.`,
       });
-      // Would typically redirect or update auth state here
+      
+      // Redirect based on role
+      const redirectPath = 
+        selectedRole === "investor" ? "/dashboard" :
+        selectedRole === "company" ? "/company-dashboard" :
+        "/admin-dashboard";
+        
+      window.location.href = redirectPath;
     } catch (error) {
       toast({
         title: "Error",
@@ -47,55 +58,72 @@ const SignIn = () => {
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl font-bold text-center text-lebanese-navy">Sign in to LebVest</CardTitle>
             <CardDescription className="text-center">
-              Enter your email below to sign in to your account
+              Select your role below to access your account
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input 
-                  id="email" 
-                  type="email" 
-                  placeholder="name@example.com" 
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="password">Password</Label>
-                  <Link to="/forgot-password" className="text-sm text-lebanese-navy hover:text-lebanese-green">
-                    Forgot password?
-                  </Link>
+            <Tabs defaultValue="investor" onValueChange={setSelectedRole} className="w-full mb-6">
+              <TabsList className="grid w-full grid-cols-3 mb-6">
+                <TabsTrigger value="investor" className="flex flex-col items-center py-3">
+                  <UserIcon className="mb-1 h-5 w-5" />
+                  <span>Investor</span>
+                </TabsTrigger>
+                <TabsTrigger value="company" className="flex flex-col items-center py-3">
+                  <Building2Icon className="mb-1 h-5 w-5" />
+                  <span>Company</span>
+                </TabsTrigger>
+                <TabsTrigger value="admin" className="flex flex-col items-center py-3">
+                  <ShieldIcon className="mb-1 h-5 w-5" />
+                  <span>Admin</span>
+                </TabsTrigger>
+              </TabsList>
+              
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input 
+                    id="email" 
+                    type="email" 
+                    placeholder="name@example.com" 
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
                 </div>
-                <Input 
-                  id="password" 
-                  type="password" 
-                  placeholder="••••••••" 
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox id="remember" />
-                <label
-                  htmlFor="remember"
-                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="password">Password</Label>
+                    <Link to="/forgot-password" className="text-sm text-lebanese-navy hover:text-lebanese-green">
+                      Forgot password?
+                    </Link>
+                  </div>
+                  <Input 
+                    id="password" 
+                    type="password" 
+                    placeholder="••••••••" 
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox id="remember" />
+                  <label
+                    htmlFor="remember"
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
+                    Remember me
+                  </label>
+                </div>
+                <Button 
+                  type="submit" 
+                  className="w-full bg-lebanese-navy hover:bg-opacity-90"
+                  disabled={isLoading}
                 >
-                  Remember me
-                </label>
-              </div>
-              <Button 
-                type="submit" 
-                className="w-full bg-lebanese-navy hover:bg-opacity-90"
-                disabled={isLoading}
-              >
-                {isLoading ? "Signing in..." : "Sign In"}
-              </Button>
-            </form>
+                  {isLoading ? "Signing in..." : `Sign In as ${selectedRole.charAt(0).toUpperCase() + selectedRole.slice(1)}`}
+                </Button>
+              </form>
+            </Tabs>
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
             <div className="text-center text-sm">
