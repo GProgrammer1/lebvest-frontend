@@ -20,14 +20,6 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import FAQ from "./pages/FAQ";
 import HowItWorks from "./pages/HowItWorks";
 import NotFound from "./pages/NotFound";
-import SignIn from "./pages/SignIn";
-import Register from "./pages/Register";
-import About from "./pages/About";
-import ForgotPassword from "./pages/ForgotPassword";
-import TermsOfService from "./pages/TermsOfService";
-import PrivacyPolicy from "./pages/PrivacyPolicy";
-import FAQ from "./pages/FAQ";
-import HowItWorks from "./pages/HowItWorks";
 const queryClient = new QueryClient();
 
 const App = () => (

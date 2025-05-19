@@ -1,14 +1,26 @@
-
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UserPlus, BuildingIcon, ShieldCheck } from "lucide-react";
 import Navbar from "@/components/Navbar";
@@ -41,24 +53,24 @@ const Register = () => {
   const [role, setRole] = useState<UserRole>("investor");
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  
+
   // Role-specific form data
   const [investorData, setInvestorData] = useState<InvestorFormData>({
     investmentPreferences: [],
     riskTolerance: "medium",
-    portfolioGoals: ""
+    portfolioGoals: "",
   });
-  
+
   const [companyData, setCompanyData] = useState<CompanyFormData>({
     companyName: "",
     description: "",
     industrySector: "technology",
-    teamSize: "1-10"
+    teamSize: "1-10",
   });
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    
+
     if (password !== confirmPassword) {
       toast({
         title: "Error",
@@ -72,7 +84,10 @@ const Register = () => {
       setCurrentStep(2);
       return;
     }
-    
+    if (role === "company" && currentStep === 2) {
+      setCurrentStep(3);
+      return;
+    }
     setIsLoading(true);
 
     try {
@@ -84,8 +99,8 @@ const Register = () => {
       });
 
       // Redirect based on user role
-      switch(role) {
-        case "investor": 
+      switch (role) {
+        case "investor":
           navigate("/dashboard");
           break;
         case "company":
@@ -97,7 +112,6 @@ const Register = () => {
         default:
           navigate("/dashboard");
       }
-      
     } catch (error) {
       toast({
         title: "Error",
@@ -113,12 +127,17 @@ const Register = () => {
     if (investorData.investmentPreferences.includes(preference)) {
       setInvestorData({
         ...investorData,
-        investmentPreferences: investorData.investmentPreferences.filter(p => p !== preference)
+        investmentPreferences: investorData.investmentPreferences.filter(
+          (p) => p !== preference
+        ),
       });
     } else {
       setInvestorData({
         ...investorData,
-        investmentPreferences: [...investorData.investmentPreferences, preference]
+        investmentPreferences: [
+          ...investorData.investmentPreferences,
+          preference,
+        ],
       });
     }
   };
@@ -127,9 +146,9 @@ const Register = () => {
     <>
       <div className="space-y-2">
         <Label htmlFor="fullName">Full Name</Label>
-        <Input 
-          id="fullName" 
-          placeholder="John Doe" 
+        <Input
+          id="fullName"
+          placeholder="John Doe"
           value={fullName}
           onChange={(e) => setFullName(e.target.value)}
           required
@@ -137,10 +156,10 @@ const Register = () => {
       </div>
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
-        <Input 
-          id="email" 
-          type="email" 
-          placeholder="name@example.com" 
+        <Input
+          id="email"
+          type="email"
+          placeholder="name@example.com"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
@@ -148,10 +167,10 @@ const Register = () => {
       </div>
       <div className="space-y-2">
         <Label htmlFor="password">Password</Label>
-        <Input 
-          id="password" 
-          type="password" 
-          placeholder="••••••••" 
+        <Input
+          id="password"
+          type="password"
+          placeholder="••••••••"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
@@ -159,10 +178,10 @@ const Register = () => {
       </div>
       <div className="space-y-2">
         <Label htmlFor="confirmPassword">Confirm Password</Label>
-        <Input 
-          id="confirmPassword" 
-          type="password" 
-          placeholder="••••••••" 
+        <Input
+          id="confirmPassword"
+          type="password"
+          placeholder="••••••••"
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
           required
@@ -170,17 +189,27 @@ const Register = () => {
       </div>
       <div className="space-y-3">
         <Label>I am registering as</Label>
-        <RadioGroup value={role} onValueChange={(value) => setRole(value as UserRole)} className="flex flex-col space-y-2">
+        <RadioGroup
+          value={role}
+          onValueChange={(value) => setRole(value as UserRole)}
+          className="flex flex-col space-y-2"
+        >
           <div className="flex items-center space-x-2 rounded-md border p-3 hover:bg-gray-50">
             <RadioGroupItem value="investor" id="investor" />
-            <Label htmlFor="investor" className="flex items-center cursor-pointer">
+            <Label
+              htmlFor="investor"
+              className="flex items-center cursor-pointer"
+            >
               <UserPlus className="h-4 w-4 mr-2 text-lebanese-navy" />
               Investor
             </Label>
           </div>
           <div className="flex items-center space-x-2 rounded-md border p-3 hover:bg-gray-50">
             <RadioGroupItem value="company" id="company" />
-            <Label htmlFor="company" className="flex items-center cursor-pointer">
+            <Label
+              htmlFor="company"
+              className="flex items-center cursor-pointer"
+            >
               <BuildingIcon className="h-4 w-4 mr-2 text-lebanese-navy" />
               Company
             </Label>
@@ -202,18 +231,29 @@ const Register = () => {
       <div className="space-y-3">
         <Label>Investment Preferences (Select all that apply)</Label>
         <div className="grid grid-cols-2 gap-2">
-          {["real_estate", "government_bonds", "startup", "personal_project", "agriculture", "technology"].map((preference) => (
+          {[
+            "real_estate",
+            "government_bonds",
+            "startup",
+            "personal_project",
+            "agriculture",
+            "technology",
+          ].map((preference) => (
             <div key={preference} className="flex items-center space-x-2">
-              <Checkbox 
-                id={`preference-${preference}`} 
-                checked={investorData.investmentPreferences.includes(preference)}
-                onCheckedChange={() => handleInvestmentPreferenceChange(preference)}
+              <Checkbox
+                id={`preference-${preference}`}
+                checked={investorData.investmentPreferences.includes(
+                  preference
+                )}
+                onCheckedChange={() =>
+                  handleInvestmentPreferenceChange(preference)
+                }
               />
               <label
                 htmlFor={`preference-${preference}`}
                 className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 capitalize"
               >
-                {preference.replace('_', ' ')}
+                {preference.replace("_", " ")}
               </label>
             </div>
           ))}
@@ -221,9 +261,11 @@ const Register = () => {
       </div>
       <div className="space-y-2">
         <Label htmlFor="riskTolerance">Risk Tolerance</Label>
-        <Select 
-          value={investorData.riskTolerance} 
-          onValueChange={(value) => setInvestorData({...investorData, riskTolerance: value})}
+        <Select
+          value={investorData.riskTolerance}
+          onValueChange={(value) =>
+            setInvestorData({ ...investorData, riskTolerance: value })
+          }
         >
           <SelectTrigger>
             <SelectValue placeholder="Select risk tolerance" />
@@ -237,43 +279,53 @@ const Register = () => {
       </div>
       <div className="space-y-2">
         <Label htmlFor="portfolioGoals">Portfolio Goals</Label>
-        <Input 
-          id="portfolioGoals" 
-          placeholder="Describe your investment goals..." 
+        <Input
+          id="portfolioGoals"
+          placeholder="Describe your investment goals..."
           value={investorData.portfolioGoals}
-          onChange={(e) => setInvestorData({...investorData, portfolioGoals: e.target.value})}
+          onChange={(e) =>
+            setInvestorData({ ...investorData, portfolioGoals: e.target.value })
+          }
         />
       </div>
     </>
   );
 
-  const renderCompanyForm = () => (
+  // In your Register component:
+  // Step 2: basic profile fields
+  const renderCompanyStep1 = () => (
     <>
       <div className="space-y-2">
         <Label htmlFor="companyName">Company Name</Label>
-        <Input 
-          id="companyName" 
-          placeholder="Your Company LLC" 
+        <Input
+          id="companyName"
+          placeholder="Your Company LLC"
           value={companyData.companyName}
-          onChange={(e) => setCompanyData({...companyData, companyName: e.target.value})}
+          onChange={(e) =>
+            setCompanyData({ ...companyData, companyName: e.target.value })
+          }
           required
         />
       </div>
       <div className="space-y-2">
         <Label htmlFor="description">Company Description</Label>
-        <Input 
-          id="description" 
-          placeholder="Brief description of your company..." 
+        <Input
+          id="description"
+          placeholder="Brief description of your company..."
           value={companyData.description}
-          onChange={(e) => setCompanyData({...companyData, description: e.target.value})}
+          onChange={(e) =>
+            setCompanyData({ ...companyData, description: e.target.value })
+          }
           required
         />
       </div>
       <div className="space-y-2">
         <Label htmlFor="industrySector">Industry Sector</Label>
-        <Select 
-          value={companyData.industrySector} 
-          onValueChange={(value) => setCompanyData({...companyData, industrySector: value})}
+        <Select
+          value={companyData.industrySector}
+          onValueChange={(value) =>
+            setCompanyData({ ...companyData, industrySector: value })
+          }
         >
           <SelectTrigger>
             <SelectValue placeholder="Select industry sector" />
@@ -292,9 +344,11 @@ const Register = () => {
       </div>
       <div className="space-y-2">
         <Label htmlFor="teamSize">Team Size</Label>
-        <Select 
-          value={companyData.teamSize} 
-          onValueChange={(value) => setCompanyData({...companyData, teamSize: value})}
+        <Select
+          value={companyData.teamSize}
+          onValueChange={(value) =>
+            setCompanyData({ ...companyData, teamSize: value })
+          }
         >
           <SelectTrigger>
             <SelectValue placeholder="Select team size" />
@@ -310,76 +364,198 @@ const Register = () => {
     </>
   );
 
+  // Step 3: document uploads
+  const renderCompanyStep2 = () => (
+    <div className="space-y-4">
+      <h3 className="text-lg font-medium">Upload Company Documents</h3>
+      <p className="text-sm text-gray-500">
+        Please upload each required file for admin verification.
+      </p>
+
+      {[
+        {
+          id: "doc-incorporation",
+          label: "Certificate of Incorporation",
+          accept: ".pdf,.jpg,.png",
+          required: true,
+        },
+        {
+          id: "doc-bylaws",
+          label: "Articles of Association (Bylaws)",
+          accept: ".pdf,.jpg,.png",
+          required: true,
+        },
+        {
+          id: "doc-tax",
+          label: "Tax Identification Certificate",
+          accept: ".pdf,.jpg,.png",
+          required: true,
+        },
+        {
+          id: "doc-address",
+          label: "Proof of Address",
+          accept: ".pdf,.jpg,.png",
+          required: true,
+        },
+        {
+          id: "doc-rep-id",
+          label: "Representative Photo ID",
+          accept: ".pdf,.jpg,.png",
+          required: true,
+        },
+        {
+          id: "doc-financials",
+          label: "Recent Financial Statement",
+          accept: ".pdf,.xls,.xlsx,.csv",
+          required: true,
+        },
+        {
+          id: "doc-pitch",
+          label: "Pitch Deck (optional)",
+          accept: ".pdf,.ppt,.pptx",
+          required: false,
+        },
+      ].map(({ id, label, accept, required }) => (
+        <div
+          key={id}
+          className="border-dashed border-2 border-gray-300 rounded-lg p-6 text-center"
+        >
+          <Label htmlFor={id} className="block mb-2 text-sm font-medium">
+            {label}
+          </Label>
+          <input
+            id={id}
+            type="file"
+            accept={accept}
+            className="sr-only"
+            required={required}
+          />
+          <button
+            type="button"
+            className="text-lebanese-navy hover:underline"
+            onClick={() => document.getElementById(id)!.click()}
+          >
+            Select file
+          </button>
+          <p className="mt-1 text-xs text-gray-500">
+            {accept.replace(/,/g, ", ")}
+          </p>
+        </div>
+      ))}
+
+      <div className="flex items-start">
+        <input
+          id="companyTerms"
+          type="checkbox"
+          className="h-4 w-4 border-gray-300 rounded text-lebanese-navy focus:ring-lebanese-green"
+          required
+        />
+        <label htmlFor="companyTerms" className="ml-3 text-sm">
+          I agree to the{" "}
+          <a href="/terms-of-service" className="underline text-lebanese-navy">
+            terms of service
+          </a>{" "}
+          and{" "}
+          <a href="/privacy-policy" className="underline text-lebanese-navy">
+            privacy policy
+          </a>
+          .
+        </label>
+      </div>
+    </div>
+  );
+
   const renderAdminForm = () => (
     <div className="text-center py-4">
       <ShieldCheck className="h-16 w-16 mx-auto text-lebanese-navy mb-4" />
-      <p className="text-gray-600 mb-2">Admin registration requires approval.</p>
-      <p className="text-gray-600">After submission, an administrator will review your application.</p>
+      <p className="text-gray-600 mb-2">
+        Admin registration requires approval.
+      </p>
+      <p className="text-gray-600">
+        After submission, an administrator will review your application.
+      </p>
     </div>
   );
 
   const renderStep2 = () => (
     <>
       {role === "investor" && renderInvestorForm()}
-      {role === "company" && renderCompanyForm()}
+      {role === "company" && currentStep === 2 && renderCompanyStep1()}
+      {role === "company" && currentStep === 3 && renderCompanyStep2()}
       {role === "admin" && renderAdminForm()}
-      
-      <div className="flex items-center space-x-2">
-        <Checkbox id="terms" required />
-        <label
-          htmlFor="terms"
-          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-        >
-          I agree to the{" "}
-          <Link to="/terms-of-service" className="text-lebanese-navy hover:text-lebanese-green">
-            terms of service
-          </Link>{" "}
-          and{" "}
-          <Link to="/privacy-policy" className="text-lebanese-navy hover:text-lebanese-green">
-            privacy policy
-          </Link>
-        </label>
-      </div>
+
+      {role !== "company" && (
+        <div className="flex items-center space-x-2">
+          <Checkbox id="terms" required />
+          <label
+            htmlFor="terms"
+            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+          >
+            I agree to the{" "}
+            <Link
+              to="/terms-of-service"
+              className="text-lebanese-navy hover:text-lebanese-green"
+            >
+              terms of service
+            </Link>{" "}
+            and{" "}
+            <Link
+              to="/privacy-policy"
+              className="text-lebanese-navy hover:text-lebanese-green"
+            >
+              privacy policy
+            </Link>
+          </label>
+        </div>
+      )}
     </>
   );
 
   return (
     <div className="flex flex-col min-h-screen">
       <Helmet>
-        <title>{currentStep === 1 ? "Create Account" : `${role.charAt(0).toUpperCase() + role.slice(1)} Registration`} | LebVest</title>
+        <title>
+          {currentStep === 1
+            ? "Create Account"
+            : `${
+                role.charAt(0).toUpperCase() + role.slice(1)
+              } Registration`}{" "}
+          | LebVest
+        </title>
       </Helmet>
       <Navbar />
       <main className="flex-grow flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50">
         <Card className="w-full max-w-md">
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl font-bold text-center text-lebanese-navy">
-              {currentStep === 1 ? "Create an account" : `Complete your ${role} profile`}
+              {currentStep === 1
+                ? "Create an account"
+                : `Complete your ${role} profile`}
             </CardTitle>
             <CardDescription className="text-center">
-              {currentStep === 1 
-                ? "Enter your information below to create your account" 
-                : `Please provide the following ${role}-specific information`
-              }
+              {currentStep === 1
+                ? "Enter your information below to create your account"
+                : `Please provide the following ${role}-specific information`}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               {currentStep === 1 ? renderStep1() : renderStep2()}
-              
-              <Button 
-                type="submit" 
+
+              <Button
+                type="submit"
                 className="w-full bg-lebanese-navy hover:bg-opacity-90"
                 disabled={isLoading}
               >
-                {isLoading 
-                  ? "Creating account..." 
-                  : currentStep === 1 
-                    ? "Continue" 
-                    : "Register"
-                }
+                {isLoading
+                  ? "Creating account..."
+                  : currentStep === 1 ||
+                    (role === "company" && currentStep === 2)
+                  ? "Continue"
+                  : "Register"}
               </Button>
-              
-              {currentStep === 2 && (
+
+              {(currentStep === 2 || currentStep === 3) && (
                 <Button
                   type="button"
                   variant="outline"
@@ -394,7 +570,10 @@ const Register = () => {
           <CardFooter className="flex flex-col space-y-4">
             <div className="text-center text-sm">
               Already have an account?{" "}
-              <Link to="/signin" className="text-lebanese-navy font-medium hover:text-lebanese-green">
+              <Link
+                to="/signin"
+                className="text-lebanese-navy font-medium hover:text-lebanese-green"
+              >
                 Sign in
               </Link>
             </div>
