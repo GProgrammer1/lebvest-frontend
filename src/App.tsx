@@ -8,6 +8,9 @@ import Index from "./pages/Index";
 import Investments from "./pages/Investments";
 import InvestmentDetail from "./pages/InvestmentDetail";
 import Dashboard from "./pages/Dashboard";
+import CompanyDashboard from "./pages/CompanyDashboard";
+import AdminDashboard from "./pages/AdminDashboard";
+import InvestorProfile from "./pages/InvestorProfile";
 import ListProject from "./pages/ListProject";
 import SignIn from "./pages/SignIn";
 import Register from "./pages/Register";
@@ -32,6 +35,9 @@ const App = () => (
           <Route path="/investments" element={<Investments />} />
           <Route path="/investments/:id" element={<InvestmentDetail />} />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/company-dashboard" element={<CompanyDashboard />} />
+          <Route path="/admin-dashboard" element={<AdminDashboard />} />
+          <Route path="/investor-profile/:id" element={<InvestorProfile />} />
           <Route path="/list-project" element={<ListProject />} />
           <Route path="/signin" element={<SignIn />} />
           <Route path="/register" element={<Register />} />
