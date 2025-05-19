@@ -28,7 +28,7 @@ const Navbar = () => {
               <Link to="/list-project" className="text-gray-700 hover:text-lebanese-green inline-flex items-center px-1 pt-1 text-sm font-medium">
                 List Project
               </Link>
-             <Link to="/about" className="text-gray-700 hover:text-lebanese-green inline-flex items-center px-1 pt-1 text-sm font-medium">
+              <Link to="/about" className="text-gray-700 hover:text-lebanese-green inline-flex items-center px-1 pt-1 text-sm font-medium">
                 About
               </Link>
             </div>
@@ -45,7 +45,7 @@ const Navbar = () => {
                 className="pl-10 py-2 pr-4 block w-full sm:text-sm border-gray-300 rounded-md focus:ring-lebanese-green focus:border-lebanese-green border"
               />
             </div>
-           <Link to="/signin">
+            <Link to="/signin">
               <Button variant="outline" className="mr-2 border-lebanese-navy text-lebanese-navy hover:text-lebanese-navy hover:bg-gray-100">
                 Sign In
               </Button>
@@ -103,7 +103,7 @@ const Navbar = () => {
               List Project
             </Link>
             <Link
-              to="#"
+              to="/about"
               className="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800"
               onClick={() => setIsMenuOpen(false)}
             >
@@ -118,8 +118,12 @@ const Navbar = () => {
                 </div>
               </div>
               <div className="ml-3">
-                <div className="text-base font-medium text-gray-800">Sign in</div>
-                <div className="text-sm font-medium text-gray-500">Register</div>
+                <Link to="/signin" onClick={() => setIsMenuOpen(false)}>
+                  <div className="text-base font-medium text-gray-800">Sign in</div>
+                </Link>
+                <Link to="/register" onClick={() => setIsMenuOpen(false)}>
+                  <div className="text-sm font-medium text-gray-500">Register</div>
+                </Link>
               </div>
             </div>
             <div className="mt-3">
