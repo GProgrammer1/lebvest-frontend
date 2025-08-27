@@ -142,7 +142,7 @@ const ProjectReview = () => {
       toast({
         title: "Action required",
         description: "Please select either Approve or Reject before submitting",
-        variant: "destructive"
+        variant: "warning"
       });
       return;
     }
@@ -151,7 +151,7 @@ const ProjectReview = () => {
       toast({
         title: "Review notes required",
         description: "Please provide feedback explaining the rejection reason",
-        variant: "destructive"
+        variant: "warning"
       });
       return;
     }

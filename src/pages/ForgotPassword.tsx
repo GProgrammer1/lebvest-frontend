@@ -9,6 +9,8 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Helmet } from "react-helmet";
 import { LockKeyhole } from "lucide-react";
+import apiClient from "@/api/common/apiClient";
+import { ResponsePayload } from "@/lib/types";
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState("");
@@ -22,17 +24,26 @@ const ForgotPassword = () => {
 
     try {
       // Mock password reset - would be replaced with real reset flow
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const response = await apiClient.post("/auth/forgot-password", {
+        email
+      },
+    {
+      headers: {
+        'Content-Type' : 'application/json'
+      }
+    });
+    
       setIsSubmitted(true);
       toast({
         title: "Reset email sent",
         description: "If an account exists with that email, we've sent a password reset link.",
+        variant: 'info'
       });
     } catch (error) {
       toast({
         title: "Error",
         description: "Something went wrong. Please try again.",
-        variant: "destructive",
+        variant: "error",
       });
     } finally {
       setIsLoading(false);

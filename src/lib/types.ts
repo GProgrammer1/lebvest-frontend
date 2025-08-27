@@ -1,45 +1,49 @@
 
-export type InvestmentCategory = 
-  | 'real_estate'
-  | 'government_bonds'
-  | 'startup'
-  | 'personal_project'
-  | 'sme'
-  | 'agriculture'
-  | 'technology'
-  | 'education'
-  | 'healthcare'
-  | 'energy'
-  | 'tourism'
-  | 'retail';
+export type InvestmentCategory =
+  | 'Real Estate'
+  | 'Government Bonds'
+  | 'Startup'
+  | 'Personal Project'
+  | 'Sme'
+  | 'Agriculture'
+  | 'Technology'
+  | 'Education'
+  | 'Healthcare'
+  | 'Energy'
+  | 'Tourism'
+  | 'Retail';
 
-export type RiskLevel = 'low' | 'medium' | 'high';
 
-export type InvestmentType = 'equity' | 'debt' | 'crowdfunding';
+export type Role = 'Investor' | 'Admin' | 'Company';
+export type RiskLevel = 'Low' | 'Medium' | 'High';
+
+export type InvestmentType = 'Equity' | 'Debt' | 'Crowdfunding';
 
 export type InvestmentSector =
-  | 'technology'
-  | 'healthcare'
-  | 'finance'
-  | 'real_estate'
-  | 'consumer'
-  | 'energy'
-  | 'industrial'
-  | 'agriculture'
-  | 'education'
-  | 'tourism'
-  | 'retail'
-  | 'other';
+  | 'Technology'
+  | 'Healthcare'
+  | 'Finance'
+  | 'Real Estate'
+  | 'Consumer'
+  | 'Energy'
+  | 'Industrial'
+  | 'Agriculture'
+  | 'Education'
+  | 'Tourism'
+  | 'Retail'
+  | 'Other';
+
 
 export type Location =
-  | 'beirut'
-  | 'mount_lebanon'
-  | 'north'
-  | 'south'
-  | 'bekaa'
-  | 'nabatieh'
-  | 'baalbek_hermel'
-  | 'akkar';
+  | 'Beirut'
+  | 'Mount Lebanon'
+  | 'North'
+  | 'South'
+  | 'Bekaa'
+  | 'Nabatieh'
+  | 'Baalbek Hermel'
+  | 'Akkar';
+
 
 export interface Investment {
   id: string;
@@ -139,6 +143,23 @@ export interface FilterOptions {
   maxAmount?: number;
 }
 
+// export interface AdminNotification {
+//   type: AdminNotificationType;
+//   id: number;
+//   message: string;
+//   createdAt: Date;
+//   admin: number;
+//   isRead: boolean;
+//   isAccepted: Boolean;
+//   title: string;
+// }
+
+export type AdminNotificationType =
+| "Signup Request"
+| "Project Proposal"
+| "App Stats Update"
+
+
 export interface CompanyProfile {
   id: string;
   name: string;
@@ -183,4 +204,18 @@ export interface CompanyProfile {
     date: string;
     investors: string[];
   }[];
+}
+
+export interface ResponsePayload {
+  status: number;
+  message: string;
+  data: { [key: string]: any }
+  timestamp: Date;
+}
+
+export interface ErrorPayload {
+  path: string;
+  status: number;
+  message: string;
+  timestamp: Date;
 }

@@ -1,48 +1,75 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UserIcon, Building2Icon, ShieldIcon } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import apiClient from "@/api/common/apiClient";
 
 const SignIn = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedRole, setSelectedRole] = useState("investor");
+  const [selectedRole, setSelectedRole] = useState("Investor");
   const { toast } = useToast();
 
+  const navigate = useNavigate();
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
+      console.log("Selected role: ", selectedRole);
+      
       // Mock authentication - would be replaced with real authentication
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      
-      toast({
-        title: "Success!",
-        description: `You have been signed in as ${selectedRole}.`,
+      const response: any = await apiClient.post("/auth/login", {
+        email,
+        password,
+        role: selectedRole,
       });
-      
+      if (response?.status === 200) {
+        const token = response.data?.data?.token;
+        localStorage.setItem("authToken", token);
+        toast({
+          title: "Success!",
+          description: `You have been signed in as ${selectedRole.toLowerCase()}.`,
+          variant: "success"
+        });
+      } else {
+        toast({
+          title: "Error!",
+          description: "You have entered wrong credentials. Please try again."
+        })
+      }
+
       // Redirect based on role
-      const redirectPath = 
-        selectedRole === "investor" ? "/dashboard" :
-        selectedRole === "company" ? "/company-dashboard" :
-        "/admin-dashboard";
-        
-      window.location.href = redirectPath;
+      const redirectPath =
+        selectedRole === "investor"
+          ? "/dashboard"
+          : selectedRole === "company"
+          ? "/company-dashboard"
+          : "/admin-dashboard";
+
+      navigate(redirectPath);
     } catch (error) {
       toast({
         title: "Error",
+        
         description: "Failed to sign in. Please check your credentials.",
-        variant: "destructive",
+        variant: "error",
       });
     } finally {
       setIsLoading(false);
@@ -55,35 +82,50 @@ const SignIn = () => {
       <main className="flex-grow flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50">
         <Card className="w-full max-w-md">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold text-center text-lebanese-navy">Sign in to LebVest</CardTitle>
+            <CardTitle className="text-2xl font-bold text-center text-lebanese-navy">
+              Sign in to LebVest
+            </CardTitle>
             <CardDescription className="text-center">
               Select your role below to access your account
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="investor" onValueChange={setSelectedRole} className="w-full mb-6">
+            <Tabs
+              defaultValue="investor"
+              onValueChange={setSelectedRole}
+              className="w-full mb-6"
+            >
               <TabsList className="grid w-full grid-cols-3 mb-6">
-                <TabsTrigger value="investor" className="flex flex-col items-center py-3">
+                <TabsTrigger
+                  value="Investor"
+                  className="flex flex-col items-center py-3"
+                >
                   <UserIcon className="mb-1 h-5 w-5" />
                   <span>Investor</span>
                 </TabsTrigger>
-                <TabsTrigger value="company" className="flex flex-col items-center py-3">
+                <TabsTrigger
+                  value="Company"
+                  className="flex flex-col items-center py-3"
+                >
                   <Building2Icon className="mb-1 h-5 w-5" />
                   <span>Company</span>
                 </TabsTrigger>
-                <TabsTrigger value="admin" className="flex flex-col items-center py-3">
+                <TabsTrigger
+                  value="Admin"
+                  className="flex flex-col items-center py-3"
+                >
                   <ShieldIcon className="mb-1 h-5 w-5" />
                   <span>Admin</span>
                 </TabsTrigger>
               </TabsList>
-              
+
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
-                  <Input 
-                    id="email" 
-                    type="email" 
-                    placeholder="name@example.com" 
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="name@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
@@ -92,14 +134,17 @@ const SignIn = () => {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label htmlFor="password">Password</Label>
-                    <Link to="/forgot-password" className="text-sm text-lebanese-navy hover:text-lebanese-green">
+                    <Link
+                      to="/forgot-password"
+                      className="text-sm text-lebanese-navy hover:text-lebanese-green"
+                    >
                       Forgot password?
                     </Link>
                   </div>
-                  <Input 
-                    id="password" 
-                    type="password" 
-                    placeholder="••••••••" 
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
@@ -114,12 +159,17 @@ const SignIn = () => {
                     Remember me
                   </label>
                 </div>
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   className="w-full bg-lebanese-navy hover:bg-opacity-90"
                   disabled={isLoading}
                 >
-                  {isLoading ? "Signing in..." : `Sign In as ${selectedRole.charAt(0).toUpperCase() + selectedRole.slice(1)}`}
+                  {isLoading
+                    ? "Signing in..."
+                    : `Sign In as ${
+                        selectedRole.charAt(0).toUpperCase() +
+                        selectedRole.slice(1)
+                      }`}
                 </Button>
               </form>
             </Tabs>
@@ -127,7 +177,10 @@ const SignIn = () => {
           <CardFooter className="flex flex-col space-y-4">
             <div className="text-center text-sm">
               Don't have an account?{" "}
-              <Link to="/register" className="text-lebanese-navy font-medium hover:text-lebanese-green">
+              <Link
+                to="/register"
+                className="text-lebanese-navy font-medium hover:text-lebanese-green"
+              >
                 Register now
               </Link>
             </div>
