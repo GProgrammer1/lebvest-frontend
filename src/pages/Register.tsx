@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { Ref, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CheckCircle } from "lucide-react";
+import axios, { AxiosError } from "axios";
 import {
   Card,
   CardContent,
@@ -26,21 +28,30 @@ import { UserPlus, BuildingIcon, ShieldCheck } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Helmet } from "react-helmet";
-
+import {
+  Location as EnumLocation,
+  InvestmentCategory,
+  ResponsePayload,
+  RiskLevel,
+} from "@/lib/types";
+import apiClient from "@/api/common/apiClient";
 // Types for form data
 type UserRole = "investor" | "company" | "admin";
 
 type InvestorFormData = {
-  investmentPreferences: string[];
-  riskTolerance: string;
-  portfolioGoals: string;
+  investmentCategories: InvestmentCategory[];
+  riskLevels: RiskLevel[];
+  bio: string;
+  locations: EnumLocation[];
 };
 
 type CompanyFormData = {
   companyName: string;
   description: string;
-  industrySector: string;
-  teamSize: string;
+  sector: string;
+  // teamSize: string;
+  location: string;
+  foundedYear: number;
 };
 
 const Register = () => {
@@ -51,31 +62,90 @@ const Register = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [role, setRole] = useState<UserRole>("investor");
+  const [companyFiles, setCompanyFiles] = useState<Record<string, File | null>>(
+    {}
+  );
+
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
   // Role-specific form data
   const [investorData, setInvestorData] = useState<InvestorFormData>({
-    investmentPreferences: [],
-    riskTolerance: "medium",
-    portfolioGoals: "",
+    investmentCategories: [],
+    riskLevels: [],
+    bio: "",
+    locations: [],
   });
 
   const [companyData, setCompanyData] = useState<CompanyFormData>({
     companyName: "",
     description: "",
-    industrySector: "technology",
-    teamSize: "1-10",
+    sector: "Technology",
+    foundedYear: new Date().getFullYear(),
+    location: "",
+  });
+  const [passwordStrength, setPasswordStrength] = useState({
+    length: false,
+    uppercase: false,
+    lowercase: false,
+    number: false,
+    specialChar: false,
   });
 
+  const isPasswordStrong = Object.values(passwordStrength).every(Boolean);
+ const getStrengthLabel = () => {
+    const passed = Object.values(passwordStrength).filter(Boolean).length;
+    if (passed <= 2) return { label: "Weak", color: "bg-red-500" };
+    if (passed === 3 || passed === 4) return { label: "Medium", color: "bg-yellow-500" };
+    return { label: "Strong", color: "bg-green-500" };
+  };
+  useEffect(() => {
+    setPasswordStrength({
+      length: password.length >= 8,
+      uppercase: /[A-Z]/.test(password),
+      lowercase: /[a-z]/.test(password),
+      number: /[0-9]/.test(password),
+      specialChar: /[^A-Za-z0-9]/.test(password),
+    });
+  }, [password]);
+
+ const renderPasswordRequirements = () => {
+    const strength = getStrengthLabel();
+    return (
+      <div className="mt-3">
+        <div className="w-full h-2 rounded-full overflow-hidden bg-gray-200 mb-2">
+          <div className={`h-full ${strength.color}`} style={{ width: `${(Object.values(passwordStrength).filter(Boolean).length / 5) * 100}%` }}></div>
+        </div>
+        <p className={`text-sm font-medium ${strength.color.replace('bg-', 'text-')}`}>{strength.label} password</p>
+
+        <div className="mt-4 border rounded-xl p-4 bg-white shadow-md space-y-2">
+          <ul className="list-disc pl-5">
+            <li className={passwordStrength.length ? "text-green-600" : "text-red-600"}>At least 8 characters</li>
+            <li className={passwordStrength.uppercase ? "text-green-600" : "text-red-600"}>Contains an uppercase letter</li>
+            <li className={passwordStrength.lowercase ? "text-green-600" : "text-red-600"}>Contains a lowercase letter</li>
+            <li className={passwordStrength.number ? "text-green-600" : "text-red-600"}>Contains a number</li>
+            <li className={passwordStrength.specialChar ? "text-green-600" : "text-red-600"}>Contains a special character</li>
+          </ul>
+        </div>
+      </div>
+    );
+  };
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!isPasswordStrong) {
+      toast({
+        title: "Weak Password",
+        description: "Please make sure your password meets all requirements.",
+        variant: "error",
+      });
+      return;
+    }
 
     if (password !== confirmPassword) {
       toast({
         title: "Error",
         description: "Passwords do not match.",
-        variant: "destructive",
+        variant: "error",
       });
       return;
     }
@@ -92,53 +162,145 @@ const Register = () => {
 
     try {
       // Mock registration - would be replaced with real registration
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      toast({
-        title: "Success!",
-        description: "Your account has been created.",
-      });
-
       // Redirect based on user role
+      console.log("Company data is: ", companyData);
+
       switch (role) {
         case "investor":
+          let response = await handleInvestorSignup();
+          if (response.status === 201) {
+            const { token } = response.data;
+            localStorage.setItem("authToken", token);
+            toast({
+              title: "Success!",
+              description: "Your account has been created.",
+              variant: "success",
+            });
+          }
           navigate("/dashboard");
           break;
         case "company":
-          navigate("/company-dashboard");
+          let companyResponse = await handleCompanySignup();
+          console.log("Company res: ", companyResponse);
+
+          if (companyResponse.status === 201) {
+            // const { token } = response.data;
+            // localStorage.setItem("authToken", token);
+            // localStorage.setItem("role", role);
+            toast({
+              title: "Success!",
+              description:
+                "Your request has been sent to the admins for verification. You'll receive an email in the incoming days to validate your request",
+              variant: "success",
+            });
+            // navigate("/company-dashboard");
+          }
           break;
-        case "admin":
-          navigate("/admin-dashboard");
-          break;
+
         default:
           navigate("/dashboard");
       }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to create account. Please try again.",
-        variant: "destructive",
-      });
+    } catch (err: any) {
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleInvestmentPreferenceChange = (preference: string) => {
-    if (investorData.investmentPreferences.includes(preference)) {
+  const handleriskLevelsChange = (level: RiskLevel) => {
+    setInvestorData((prev) => ({
+      ...prev,
+      riskLevels: prev.riskLevels.includes(level)
+        ? prev.riskLevels.filter((l) => l !== level)
+        : [...prev.riskLevels, level],
+    }));
+  };
+
+  const handleInvestmentCategorysChange = (sector: InvestmentCategory) => {
+    setInvestorData((prev) => ({
+      ...prev,
+      investmentCategories: prev.investmentCategories.includes(sector)
+        ? prev.investmentCategories.filter((s) => s !== sector)
+        : [...prev.investmentCategories, sector],
+    }));
+  };
+
+  const handleInvestmentLocationChange = (location: EnumLocation) => {
+    if (investorData.locations.includes(location)) {
       setInvestorData({
         ...investorData,
-        investmentPreferences: investorData.investmentPreferences.filter(
-          (p) => p !== preference
-        ),
+        locations: investorData.locations.filter((l) => l !== location),
       });
     } else {
       setInvestorData({
         ...investorData,
-        investmentPreferences: [
-          ...investorData.investmentPreferences,
-          preference,
-        ],
+        locations: [...investorData.locations, location],
       });
+    }
+  };
+
+  const handleInvestorSignup = async () => {
+    try {
+      const axiosResponse = await apiClient.post<ResponsePayload>(
+        "/auth/investor/register",
+        { ...investorData, email, name: fullName, password }
+      );
+      const response: ResponsePayload = axiosResponse.data;
+      console.log("Response of investor signup: ", response);
+
+      return response;
+    } catch (err) {
+      console.error("Error signinp up as an investor: ", err.message);
+    }
+  };
+
+  const handleCompanySignup = async () => {
+    try {
+      const formData = new FormData();
+
+      formData.append("companyName", companyData.companyName);
+      formData.append("description", companyData.description);
+      formData.append("sector", companyData.sector.toUpperCase());
+      // formData.append("teamSize", companyData.teamSize);
+      formData.append("foundedYear", String(companyData.foundedYear));
+      formData.append("location", companyData.location);
+      formData.append("email", email);
+      formData.append("name", fullName);
+      formData.append("password", password);
+
+      console.log(
+        "Company data entries for formdata: ",
+        formData.get("sector")
+      );
+
+      // Append files
+      Object.entries(companyFiles).forEach(([field, file]) => {
+        if (file) {
+          formData.append("documents", file); // backend should receive it as a Multipart[] or List<Multipart>
+        }
+      });
+      console.log("Company files are: ", companyFiles);
+
+      const axiosResponse = await apiClient.post<ResponsePayload>(
+        "/auth/company/register",
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+      const response: ResponsePayload = axiosResponse.data;
+      console.log("Response of company signup: ", response);
+      return response;
+    } catch (err: any) {
+      console.error("Error signing up company: ", err.status);
+      if (err.status === 409) {
+        toast({
+          title: "Company already registered",
+          description: err.response?.data?.message,
+          variant: "error",
+        });
+      }
     }
   };
 
@@ -175,6 +337,7 @@ const Register = () => {
           onChange={(e) => setPassword(e.target.value)}
           required
         />
+        {renderPasswordRequirements()}
       </div>
       <div className="space-y-2">
         <Label htmlFor="confirmPassword">Confirm Password</Label>
@@ -214,13 +377,6 @@ const Register = () => {
               Company
             </Label>
           </div>
-          <div className="flex items-center space-x-2 rounded-md border p-3 hover:bg-gray-50">
-            <RadioGroupItem value="admin" id="admin" />
-            <Label htmlFor="admin" className="flex items-center cursor-pointer">
-              <ShieldCheck className="h-4 w-4 mr-2 text-lebanese-navy" />
-              Admin
-            </Label>
-          </div>
         </RadioGroup>
       </div>
     </>
@@ -232,59 +388,110 @@ const Register = () => {
         <Label>Investment Preferences (Select all that apply)</Label>
         <div className="grid grid-cols-2 gap-2">
           {[
-            "real_estate",
-            "government_bonds",
-            "startup",
-            "personal_project",
-            "agriculture",
-            "technology",
+            "Technology",
+            "Real Estate",
+            "Government Bonds",
+            "Startup",
+            "Personal Project",
+            "Sme",
+            "Agriculture",
+            "Education",
+            "Healthcare",
+            "Energy",
+            "Tourism",
+            "Retail",
           ].map((preference) => (
             <div key={preference} className="flex items-center space-x-2">
               <Checkbox
                 id={`preference-${preference}`}
-                checked={investorData.investmentPreferences.includes(
-                  preference
+                checked={investorData.investmentCategories.includes(
+                  preference as InvestmentCategory
                 )}
                 onCheckedChange={() =>
-                  handleInvestmentPreferenceChange(preference)
+                  handleInvestmentCategorysChange(
+                    preference as InvestmentCategory
+                  )
                 }
               />
               <label
                 htmlFor={`preference-${preference}`}
                 className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 capitalize"
               >
-                {preference.replace("_", " ")}
+                {preference.replace(/_/g, " ")}
               </label>
             </div>
           ))}
         </div>
       </div>
-      <div className="space-y-2">
-        <Label htmlFor="riskTolerance">Risk Tolerance</Label>
-        <Select
-          value={investorData.riskTolerance}
-          onValueChange={(value) =>
-            setInvestorData({ ...investorData, riskTolerance: value })
-          }
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Select risk tolerance" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="low">Low - Conservative</SelectItem>
-            <SelectItem value="medium">Medium - Balanced</SelectItem>
-            <SelectItem value="high">High - Aggressive</SelectItem>
-          </SelectContent>
-        </Select>
+
+      <div className="space-y-3">
+        <Label>Location Preferences (Select all that apply)</Label>
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            "Beirut",
+            "Mount Lebanon",
+            "North",
+            "South",
+            "Bekaa",
+            "Nabatieh",
+            "Baalbek Hermel",
+            "Akkar",
+          ].map((location) => (
+            <div key={location} className="flex items-center space-x-2">
+              <Checkbox
+                id={`location-${location}`}
+                checked={investorData.locations.includes(
+                  location as EnumLocation
+                )}
+                onCheckedChange={() =>
+                  handleInvestmentLocationChange(location as EnumLocation)
+                }
+              />
+              <label
+                htmlFor={`location-${location}`}
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 capitalize"
+              >
+                {location.replace("_", " ")}
+              </label>
+            </div>
+          ))}
+        </div>
       </div>
+      <div className="space-y-3">
+        <Label>Risk Tolerance (Select all that apply)</Label>
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            { value: "Low", label: "Low - Conservative" },
+            { value: "Medium", label: "Medium - Balanced" },
+            { value: "High", label: "High - Aggressive" },
+          ].map(({ value, label }) => (
+            <div key={value} className="flex items-center space-x-2">
+              <Checkbox
+                id={`risk-${value}`}
+                checked={investorData.riskLevels.includes(value as RiskLevel)}
+                onCheckedChange={() =>
+                  handleriskLevelsChange(value as RiskLevel)
+                }
+              />
+              <label
+                htmlFor={`risk-${value}`}
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
+                {label}
+              </label>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <div className="space-y-2">
-        <Label htmlFor="portfolioGoals">Portfolio Goals</Label>
+        <Label htmlFor="bio">Bio</Label>
         <Input
-          id="portfolioGoals"
-          placeholder="Describe your investment goals..."
-          value={investorData.portfolioGoals}
+          id="bio"
+          placeholder="Tell people about yourself..."
+          value={investorData.bio}
           onChange={(e) =>
-            setInvestorData({ ...investorData, portfolioGoals: e.target.value })
+            setInvestorData({ ...investorData, bio: e.target.value })
           }
         />
       </div>
@@ -322,48 +529,73 @@ const Register = () => {
       <div className="space-y-2">
         <Label htmlFor="industrySector">Industry Sector</Label>
         <Select
-          value={companyData.industrySector}
-          onValueChange={(value) =>
-            setCompanyData({ ...companyData, industrySector: value })
-          }
+          value={companyData.sector}
+          onValueChange={(value) => {
+            setCompanyData({ ...companyData, sector: value });
+            console.log("Company :", companyData);
+          }}
         >
           <SelectTrigger>
             <SelectValue placeholder="Select industry sector" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="technology">Technology</SelectItem>
-            <SelectItem value="healthcare">Healthcare</SelectItem>
-            <SelectItem value="finance">Finance</SelectItem>
-            <SelectItem value="real_estate">Real Estate</SelectItem>
-            <SelectItem value="agriculture">Agriculture</SelectItem>
-            <SelectItem value="education">Education</SelectItem>
-            <SelectItem value="tourism">Tourism</SelectItem>
-            <SelectItem value="retail">Retail</SelectItem>
+            <SelectItem value="Technology">Technology</SelectItem>
+            <SelectItem value="Healthcare">Healthcare</SelectItem>
+            <SelectItem value="Finance">Finance</SelectItem>
+            <SelectItem value="Real Estate">Real Estate</SelectItem>
+            <SelectItem value="Agriculture">Agriculture</SelectItem>
+            <SelectItem value="Education">Education</SelectItem>
+            <SelectItem value="Tourism">Tourism</SelectItem>
+
+            {/* <SelectItem value="RETAIL">RETAIL</SelectItem>
+            <SelectItem value="Technology">Technology</SelectItem>
+            <SelectItem value="Healthcare">Healthcare</SelectItem>
+            <SelectItem value="Finance">Finance</SelectItem>
+            <SelectItem value="Real_Estate">Real Estate</SelectItem>
+            <SelectItem value="Agriculture">Agriculture</SelectItem>
+            <SelectItem value="Education">Education</SelectItem>
+            <SelectItem value="Tourism">Tourism</SelectItem>
+            <SelectItem value="Retail">Retail</SelectItem> */}
           </SelectContent>
         </Select>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="teamSize">Team Size</Label>
+        <Label htmlFor="foundedYear">Founded Year</Label>
         <Select
-          value={companyData.teamSize}
+          value={String(companyData.foundedYear)}
           onValueChange={(value) =>
-            setCompanyData({ ...companyData, teamSize: value })
+            setCompanyData({ ...companyData, foundedYear: parseInt(value) })
           }
         >
           <SelectTrigger>
-            <SelectValue placeholder="Select team size" />
+            <SelectValue placeholder="Select founded year" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="1-10">1-10 employees</SelectItem>
-            <SelectItem value="11-50">11-50 employees</SelectItem>
-            <SelectItem value="51-200">51-200 employees</SelectItem>
-            <SelectItem value="201+">201+ employees</SelectItem>
+            {Array.from(
+              { length: new Date().getFullYear() - 1800 + 1 },
+              (_, i) => 1800 + i
+            ).map((year, idx) => (
+              <SelectItem value={String(year)} key={idx}>
+                {year}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
+      <div className="space-y-2">
+        <Label htmlFor="location">Company location</Label>
+        <Input
+          id="location"
+          placeholder="Location of your company"
+          value={companyData.location}
+          onChange={(e) =>
+            setCompanyData({ ...companyData, location: e.target.value })
+          }
+          required
+        />
+      </div>
     </>
   );
-
   // Step 3: document uploads
   const renderCompanyStep2 = () => (
     <div className="space-y-4">
@@ -415,6 +647,12 @@ const Register = () => {
           accept: ".pdf,.ppt,.pptx",
           required: false,
         },
+        {
+          id: "logo",
+          label: "Company Logo (optional)",
+          accept: ".pdf,.jpg,.png,.svg",
+          required: false,
+        },
       ].map(({ id, label, accept, required }) => (
         <div
           key={id}
@@ -423,23 +661,38 @@ const Register = () => {
           <Label htmlFor={id} className="block mb-2 text-sm font-medium">
             {label}
           </Label>
+
           <input
             id={id}
             type="file"
             accept={accept}
-            className="sr-only"
             required={required}
+            className="sr-only"
+            key={companyFiles[id].name}
+            onChange={(e) => {
+              const file = e.target.files?.[0] || null;
+              setCompanyFiles((prev) => ({ ...prev, [id]: file }));
+            }}
+            
           />
           <button
             type="button"
-            className="text-lebanese-navy hover:underline"
-            onClick={() => document.getElementById(id)!.click()}
+            className="text-lebanese-navy hover:underline font-medium"
+            onClick={() => document.getElementById(id)?.click()}
           >
-            Select file
+            {companyFiles[id] ? "Change file" : "Select file"}
           </button>
-          <p className="mt-1 text-xs text-gray-500">
-            {accept.replace(/,/g, ", ")}
-          </p>
+
+          {companyFiles[id] ? (
+            <div className="mt-2 flex items-center justify-center gap-2 text-green-700 text-sm font-medium">
+              <CheckCircle className="w-4 h-4" />
+              <span>{companyFiles[id]?.name}</span>
+            </div>
+          ) : (
+            <p className="mt-1 text-xs text-gray-500">
+              Accepted: {accept.replace(/,/g, ", ")}
+            </p>
+          )}
         </div>
       ))}
 
@@ -465,24 +718,11 @@ const Register = () => {
     </div>
   );
 
-  const renderAdminForm = () => (
-    <div className="text-center py-4">
-      <ShieldCheck className="h-16 w-16 mx-auto text-lebanese-navy mb-4" />
-      <p className="text-gray-600 mb-2">
-        Admin registration requires approval.
-      </p>
-      <p className="text-gray-600">
-        After submission, an administrator will review your application.
-      </p>
-    </div>
-  );
-
   const renderStep2 = () => (
     <>
       {role === "investor" && renderInvestorForm()}
       {role === "company" && currentStep === 2 && renderCompanyStep1()}
       {role === "company" && currentStep === 3 && renderCompanyStep2()}
-      {role === "admin" && renderAdminForm()}
 
       {role !== "company" && (
         <div className="flex items-center space-x-2">
@@ -560,7 +800,7 @@ const Register = () => {
                   type="button"
                   variant="outline"
                   className="w-full"
-                  onClick={() => setCurrentStep(1)}
+                  onClick={() => setCurrentStep((prev) => prev - 1)}
                 >
                   Back
                 </Button>

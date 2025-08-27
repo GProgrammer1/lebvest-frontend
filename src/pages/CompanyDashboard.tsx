@@ -10,8 +10,21 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Search, Users, Filter, BellIcon } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -67,7 +80,7 @@ const mockNotifications = [
     message: "John Smith has expressed interest in your Tech Hub project.",
     date: "2025-05-15T10:30:00",
     read: false,
-    investorId: "inv1"
+    investorId: "inv1",
   },
   {
     id: 2,
@@ -86,22 +99,24 @@ const mockNotifications = [
     read: false,
   },
   {
-    id: 4, 
+    id: 4,
     type: "investor_request",
     title: "Investment Request",
-    message: "Sarah Johnson would like to invest $50,000 in your Tech Hub project.",
+    message:
+      "Sarah Johnson would like to invest $50,000 in your Tech Hub project.",
     date: "2025-05-10T14:20:00",
     read: false,
-    investorId: "inv2"
+    investorId: "inv2",
   },
   {
     id: 5,
     type: "admin_message",
     title: "Important Platform Update",
-    message: "LebVest has updated its terms of service. Please review the changes.",
+    message:
+      "LebVest has updated its terms of service. Please review the changes.",
     date: "2025-05-08T11:00:00",
     read: true,
-  }
+  },
 ];
 
 const CompanyDashboard = () => {
@@ -112,13 +127,19 @@ const CompanyDashboard = () => {
   const [notifications, setNotifications] = useState(mockNotifications);
 
   const filteredInvestors = mockInvestors.filter((inv) => {
-    if (searchQuery && !inv.name.toLowerCase().includes(searchQuery.toLowerCase())) {
+    if (
+      searchQuery &&
+      !inv.name.toLowerCase().includes(searchQuery.toLowerCase())
+    ) {
       return false;
     }
     if (riskFilter !== "all" && inv.riskLevel !== riskFilter) {
       return false;
     }
-    if (minPortfolio !== "all" && inv.portfolioSize < parseInt(minPortfolio, 10)) {
+    if (
+      minPortfolio !== "all" &&
+      inv.portfolioSize < parseInt(minPortfolio, 10)
+    ) {
       return false;
     }
     if (sectorFilter !== "all" && !inv.sectors.includes(sectorFilter)) {
@@ -128,27 +149,33 @@ const CompanyDashboard = () => {
   });
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
     }).format(amount);
   };
 
   const markAsRead = (notificationId: number) => {
-    setNotifications(notifications.map(notification => 
-      notification.id === notificationId ? { ...notification, read: true } : notification
-    ));
+    setNotifications(
+      notifications.map((notification) =>
+        notification.id === notificationId
+          ? { ...notification, read: true }
+          : notification
+      )
+    );
   };
 
-  const unreadCount = notifications.filter(notification => !notification.read).length;
+  const unreadCount = notifications.filter(
+    (notification) => !notification.read
+  ).length;
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return new Intl.DateTimeFormat('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: 'numeric',
+    return new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "numeric",
     }).format(date);
   };
 
@@ -162,8 +189,12 @@ const CompanyDashboard = () => {
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
             <div>
-              <h1 className="text-2xl font-bold text-lebanese-navy">Company Dashboard</h1>
-              <p className="text-gray-600">Find potential investors for your projects</p>
+              <h1 className="text-2xl font-bold text-lebanese-navy">
+                Company Dashboard
+              </h1>
+              <p className="text-gray-600">
+                Find potential investors for your projects
+              </p>
             </div>
             <Button className="mt-4 md:mt-0 bg-lebanese-navy hover:bg-opacity-90">
               Update Company Profile
@@ -178,7 +209,9 @@ const CompanyDashboard = () => {
               <TabsTrigger value="notifications" className="relative">
                 Notifications
                 {unreadCount > 0 && (
-                  <Badge className="ml-2 bg-red-500 hover:bg-red-600 text-white">{unreadCount}</Badge>
+                  <Badge className="ml-2 bg-red-500 hover:bg-red-600 text-white">
+                    {unreadCount}
+                  </Badge>
                 )}
               </TabsTrigger>
             </TabsList>
@@ -206,7 +239,9 @@ const CompanyDashboard = () => {
                       <Select
                         value={riskFilter}
                         onValueChange={(value) =>
-                          setRiskFilter(value as "all" | "low" | "medium" | "high")
+                          setRiskFilter(
+                            value as "all" | "low" | "medium" | "high"
+                          )
                         }
                       >
                         <SelectTrigger className="w-[160px]">
@@ -223,7 +258,14 @@ const CompanyDashboard = () => {
                       <Select
                         value={minPortfolio}
                         onValueChange={(value) =>
-                          setMinPortfolio(value as "all" | "50000" | "100000" | "250000" | "500000")
+                          setMinPortfolio(
+                            value as
+                              | "all"
+                              | "50000"
+                              | "100000"
+                              | "250000"
+                              | "500000"
+                          )
                         }
                       >
                         <SelectTrigger className="w-[180px]">
@@ -258,11 +300,15 @@ const CompanyDashboard = () => {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="all">All sectors</SelectItem>
-                          <SelectItem value="real_estate">Real Estate</SelectItem>
+                          <SelectItem value="real_estate">
+                            Real Estate
+                          </SelectItem>
                           <SelectItem value="technology">Technology</SelectItem>
                           <SelectItem value="healthcare">Healthcare</SelectItem>
                           <SelectItem value="startup">Startups</SelectItem>
-                          <SelectItem value="government_bonds">Gov. Bonds</SelectItem>
+                          <SelectItem value="government_bonds">
+                            Gov. Bonds
+                          </SelectItem>
                           <SelectItem value="education">Education</SelectItem>
                         </SelectContent>
                       </Select>
@@ -284,8 +330,12 @@ const CompanyDashboard = () => {
                         {filteredInvestors.length > 0 ? (
                           filteredInvestors.map((inv) => (
                             <TableRow key={inv.id}>
-                              <TableCell className="font-medium">{inv.name}</TableCell>
-                              <TableCell>{formatCurrency(inv.portfolioSize)}</TableCell>
+                              <TableCell className="font-medium">
+                                {inv.name}
+                              </TableCell>
+                              <TableCell>
+                                {formatCurrency(inv.portfolioSize)}
+                              </TableCell>
                               <TableCell>
                                 <span
                                   className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -296,7 +346,8 @@ const CompanyDashboard = () => {
                                       : "bg-red-100 text-red-700"
                                   }`}
                                 >
-                                  {inv.riskLevel.charAt(0).toUpperCase() + inv.riskLevel.slice(1)}
+                                  {inv.riskLevel.charAt(0).toUpperCase() +
+                                    inv.riskLevel.slice(1)}
                                 </span>
                               </TableCell>
                               <TableCell>
@@ -310,11 +361,17 @@ const CompanyDashboard = () => {
                                 ))}
                               </TableCell>
                               <TableCell className="space-x-2">
-                                <Link to={`/investor-profile/${investor.id}`}>
-                                  <Button variant="outline" size="sm">View Profile</Button>
+                                <Link to={`/investor-profile/${inv.id}`}>
+                                  <Button variant="outline" size="sm">
+                                    View Profile
+                                  </Button>
                                 </Link>
-                                <Link to={`/compare-investors/${investor.id}`}>
-                                  <Button variant="outline" size="sm" className="ml-2">
+                                <Link to={`/compare-investors/${inv.id}`}>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="ml-2"
+                                  >
                                     Compare
                                   </Button>
                                 </Link>
@@ -339,19 +396,26 @@ const CompanyDashboard = () => {
               <Card>
                 <CardHeader>
                   <CardTitle className="text-xl">My Projects</CardTitle>
-                  <CardDescription>Manage your investment projects</CardDescription>
+                  <CardDescription>
+                    Manage your investment projects
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="flex justify-end mb-6">
-                    <Button className="bg-lebanese-navy hover:bg-opacity-90">+ New Project</Button>
+                    <Button className="bg-lebanese-navy hover:bg-opacity-90">
+                      + New Project
+                    </Button>
                   </div>
                   <div className="text-center py-12">
                     <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                       <Filter className="h-8 w-8 text-gray-400" />
                     </div>
-                    <h3 className="text-lg font-medium text-gray-900">No projects yet</h3>
+                    <h3 className="text-lg font-medium text-gray-900">
+                      No projects yet
+                    </h3>
                     <p className="mt-1 text-gray-500 max-w-sm mx-auto">
-                      Get started by creating your first investment project to attract funding
+                      Get started by creating your first investment project to
+                      attract funding
                     </p>
                     <div className="mt-6">
                       <Button>Create Your First Project</Button>
@@ -365,38 +429,55 @@ const CompanyDashboard = () => {
               <Card>
                 <CardHeader>
                   <CardTitle className="text-xl">Analytics Dashboard</CardTitle>
-                  <CardDescription>Track investor interest and funding metrics</CardDescription>
+                  <CardDescription>
+                    Track investor interest and funding metrics
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                     <Card>
                       <CardContent className="p-6">
-                        <div className="text-sm font-medium text-gray-500">Profile Views</div>
+                        <div className="text-sm font-medium text-gray-500">
+                          Profile Views
+                        </div>
                         <div className="text-3xl font-bold mt-2">124</div>
-                        <div className="text-sm text-green-600 mt-1">+12% from last month</div>
+                        <div className="text-sm text-green-600 mt-1">
+                          +12% from last month
+                        </div>
                       </CardContent>
                     </Card>
                     <Card>
                       <CardContent className="p-6">
-                        <div className="text-sm font-medium text-gray-500">Investor Inquiries</div>
+                        <div className="text-sm font-medium text-gray-500">
+                          Investor Inquiries
+                        </div>
                         <div className="text-3xl font-bold mt-2">8</div>
-                        <div className="text-sm text-green-600 mt-1">+3 new this week</div>
+                        <div className="text-sm text-green-600 mt-1">
+                          +3 new this week
+                        </div>
                       </CardContent>
                     </Card>
                     <Card>
                       <CardContent className="p-6">
-                        <div className="text-sm font-medium text-gray-500">Funding Progress</div>
+                        <div className="text-sm font-medium text-gray-500">
+                          Funding Progress
+                        </div>
                         <div className="text-3xl font-bold mt-2">$0</div>
-                        <div className="text-sm text-gray-500 mt-1">No active funding rounds</div>
+                        <div className="text-sm text-gray-500 mt-1">
+                          No active funding rounds
+                        </div>
                       </CardContent>
                     </Card>
                   </div>
                   <Card>
                     <CardContent className="p-6">
                       <div className="text-center py-12">
-                        <h3 className="text-lg font-medium text-gray-900">Detailed analytics coming soon</h3>
+                        <h3 className="text-lg font-medium text-gray-900">
+                          Detailed analytics coming soon
+                        </h3>
                         <p className="mt-1 text-gray-500 max-w-md mx-auto">
-                          Create and publish your first project to start collecting detailed analytics and insights
+                          Create and publish your first project to start
+                          collecting detailed analytics and insights
                         </p>
                       </div>
                     </CardContent>
@@ -404,7 +485,7 @@ const CompanyDashboard = () => {
                 </CardContent>
               </Card>
             </TabsContent>
-            
+
             <TabsContent value="notifications">
               <Card>
                 <CardHeader>
@@ -417,42 +498,206 @@ const CompanyDashboard = () => {
                   <div className="space-y-4">
                     {notifications.length > 0 ? (
                       notifications.map((notification) => (
-                        <div 
-                          key={notification.id} 
-                          className={`border rounded-lg p-4 transition-colors ${notification.read ? 'bg-white' : 'bg-blue-50'}`}
+                        <div
+                          key={notification.id}
+                          className={`border rounded-lg p-4 transition-colors ${
+                            notification.read ? "bg-white" : "bg-blue-50"
+                          }`}
                           onClick={() => markAsRead(notification.id)}
                         >
                           <div className="flex justify-between items-start">
-                            <h3 className={`text-lg font-medium ${notification.read ? '' : 'text-lebanese-navy'}`}>
-                              {notification.title}
-                              {!notification.read && <span className="ml-2 inline-block w-2 h-2 bg-blue-500 rounded-full"></span>}
-                            </h3>
-                            <span className="text-sm text-gray-500">{formatDate(notification.date)}</span>
-                          </div>
-                          <p className="text-gray-700 mt-1">{notification.message}</p>
-                          <div className="mt-2 flex justify-between items-center">
-                            <div className="space-x-3">
-                              {notification.type === 'investor_inquiry' && (
-                                <Button size="sm" variant="outline" className="text-green-600 border-green-200 hover:bg-green-50">
-                                  Respond
-                                </Button>
+                            {/* ICON + TITLE */}
+                            <div className="flex items-center space-x-3">
+                              {/* 1) New Opportunity */}
+                              {notification.type === "new_opportunity" && (
+                                <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    className="h-6 w-6 text-blue-600"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                                    />
+                                  </svg>
+                                </div>
                               )}
-                              {notification.type === 'investor_request' && (
-                                <>
-                                  <Button size="sm" variant="outline" className="text-green-600 border-green-200 hover:bg-green-50">
-                                    Accept
-                                  </Button>
-                                  <Button size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50">
-                                    Decline
-                                  </Button>
-                                </>
+                              {/* 2) Update */}
+                              {notification.type === "update" && (
+                                <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    className="h-6 w-6 text-green-600"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                    />
+                                  </svg>
+                                </div>
                               )}
+                              {/* 3) Threshold */}
+                              {notification.type === "threshold" && (
+                                <div className="h-10 w-10 rounded-full bg-yellow-100 flex items-center justify-center">
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    className="h-6 w-6 text-yellow-600"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                    />
+                                  </svg>
+                                </div>
+                              )}
+                              {/* 4) News */}
+                              {notification.type === "news" && (
+                                <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center">
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    className="h-6 w-6 text-purple-600"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M19 21H5a2 2 0 01-2-2V7a2 2 0 012-2h4l2-2h6l2 2h4a2 2 0 012 2v12a2 2 0 01-2 2zM7 10h10M7 14h6"
+                                    />
+                                  </svg>
+                                </div>
+                              )}
+
+                              <h3
+                                className={`text-lg font-medium ${
+                                  notification.read ? "" : "text-lebanese-navy"
+                                }`}
+                              >
+                                {notification.title}
+                                {!notification.read && (
+                                  <span className="ml-2 inline-block w-2 h-2 bg-blue-500 rounded-full"></span>
+                                )}
+                              </h3>
                             </div>
-                            {!notification.read && (
-                              <Button size="sm" variant="ghost" onClick={() => markAsRead(notification.id)}>
-                                Mark as read
-                              </Button>
+
+                            <span className="text-sm text-gray-500">
+                              {formatDate(notification.date)}
+                            </span>
+                          </div>
+
+                          <p className="text-gray-700 mt-1">
+                            {notification.message}
+                          </p>
+
+                          {/* ICON + TITLE */}
+                          <div className="flex items-center space-x-3">
+                            {/* 1) Investor Inquiry */}
+                            {notification.type === "investor_inquiry" && (
+                              <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  className="h-6 w-6 text-blue-600"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M8 10h.01M12 10h.01M16 10h.01M9 16h6m-6-4h6"
+                                  />
+                                </svg>
+                              </div>
                             )}
+
+                            {/* 2) Funding Milestone */}
+                            {notification.type === "funding_milestone" && (
+                              <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  className="h-6 w-6 text-green-600"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M11 17l-5-5m0 0l5-5m-5 5h12"
+                                  />
+                                </svg>
+                              </div>
+                            )}
+
+                            {/* 3) Admin Message */}
+                            {notification.type === "admin_message" && (
+                              <div className="h-10 w-10 rounded-full bg-yellow-100 flex items-center justify-center">
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  className="h-6 w-6 text-yellow-600"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                  />
+                                </svg>
+                              </div>
+                            )}
+
+                            {/* 4) Investment Request */}
+                            {notification.type === "investor_request" && (
+                              <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center">
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  className="h-6 w-6 text-purple-600"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M7 8h10M7 12h4m1 8a9 9 0 100-18 9 9 0 000 18z"
+                                  />
+                                </svg>
+                              </div>
+                            )}
+
+                            <h3
+                              className={`text-lg font-medium ${
+                                notification.read ? "" : "text-lebanese-navy"
+                              }`}
+                            >
+                              {notification.title}
+                              {!notification.read && (
+                                <span className="ml-2 inline-block w-2 h-2 bg-blue-500 rounded-full" />
+                              )}
+                            </h3>
                           </div>
                         </div>
                       ))
@@ -461,9 +706,12 @@ const CompanyDashboard = () => {
                         <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                           <BellIcon className="h-8 w-8 text-gray-400" />
                         </div>
-                        <h3 className="text-lg font-medium text-gray-900">No notifications yet</h3>
+                        <h3 className="text-lg font-medium text-gray-900">
+                          No notifications yet
+                        </h3>
                         <p className="mt-1 text-gray-500 max-w-sm mx-auto">
-                          You'll be notified here when there are updates on your projects or investor inquiries
+                          You’ll be notified here when there are updates on your
+                          projects or investor inquiries.
                         </p>
                       </div>
                     )}

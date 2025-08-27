@@ -34,7 +34,7 @@ const ListProject = () => {
       
       <main className="flex-grow py-12 bg-gray-50">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Progress tracker */}
+         {/* Progress tracker */}
           <div className="flex justify-between mb-12">
             <div className="flex flex-col items-center">
               <div className={`w-10 h-10 rounded-full flex items-center justify-center ${step >= 1 ? 'bg-lebanese-green text-white' : 'bg-gray-200 text-gray-500'}`}>
@@ -47,11 +47,10 @@ const ListProject = () => {
             </div>
             <div className="flex flex-col items-center">
               <div className={`w-10 h-10 rounded-full flex items-center justify-center ${step >= 2 ? 'bg-lebanese-green text-white' : 'bg-gray-200 text-gray-500'}`}>
-                2
+                 2
               </div>
               <span className="mt-2 text-sm">Business Details</span>
-            </div>
-            <div className="flex-1 h-0.5 self-center bg-gray-200 mx-4">
+         <div className="flex-1 h-0.5 self-center bg-gray-200 mx-4">
               <div className={`h-full ${step >= 3 ? 'bg-lebanese-green' : 'bg-gray-200'}`} style={{ width: step >= 3 ? '100%' : '0%' }}></div>
             </div>
             <div className="flex flex-col items-center">
@@ -65,7 +64,8 @@ const ListProject = () => {
           {/* Form content */}
           <div className="bg-white p-8 rounded-lg shadow-md">
             <ProjectForm step={step} />
-            
+                 </div>
+          
             <div className="mt-8 flex justify-end">
               {step > 1 && (
                 <Button 
@@ -86,8 +86,7 @@ const ListProject = () => {
             </div>
           </div>
           
-          {/* Testimonials */}
-          <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="bg-white p-6 rounded-lg shadow-md">
               <div className="flex items-center mb-4">
                 <div className="h-12 w-12 rounded-full bg-gray-200 flex items-center justify-center mr-4">
@@ -99,9 +98,10 @@ const ListProject = () => {
                 </div>
               </div>
               <p className="text-gray-600">
+             {/* Testimonials */}
+               </p>
                 "LebVest made it incredibly easy to present our startup to investors. We raised our seed round in just 3 weeks and are now expanding our operations."
-              </p>
-            </div>
+          </div>
             
             <div className="bg-white p-6 rounded-lg shadow-md">
               <div className="flex items-center mb-4">

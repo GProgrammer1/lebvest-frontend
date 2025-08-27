@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Helmet } from "react-helmet";
 import {
   Card,
@@ -28,11 +28,11 @@ import {
   BarChart4,
   CheckCircle,
   AlertCircle,
+  XCircle,
+  Ban,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Link } from "react-router-dom";
 import {
   Select,
   SelectContent,
@@ -40,7 +40,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Link } from "react-router-dom";
+
 import { Checkbox } from "@radix-ui/react-checkbox";
+import { useQuery } from "@tanstack/react-query";
+import apiClient from "@/api/common/apiClient";
+import { ResponsePayload } from "@/lib/types";
+import { toast } from "@/hooks/use-toast";
+import { getClaim } from "@/util/jwtUtil";
+
+// import { AdminNotification } from "@/lib/types";
 
 // Mock data for users
 const mockUsers = [
@@ -48,7 +57,7 @@ const mockUsers = [
     id: 1,
     name: "John Smith",
     email: "john@example.com",
-    role: "investor",
+    role: "Investor",
     status: "active",
     joinDate: "2023-05-15",
   },
@@ -56,7 +65,7 @@ const mockUsers = [
     id: 2,
     name: "Tech Innovations LLC",
     email: "contact@techinno.com",
-    role: "company",
+    role: "Company",
     status: "active",
     joinDate: "2023-06-22",
   },
@@ -64,7 +73,7 @@ const mockUsers = [
     id: 3,
     name: "Sarah Johnson",
     email: "sarah@example.com",
-    role: "investor",
+    role: "Investor",
     status: "inactive",
     joinDate: "2023-07-10",
   },
@@ -72,7 +81,7 @@ const mockUsers = [
     id: 4,
     name: "Cedar Investments",
     email: "info@cedarinvest.com",
-    role: "company",
+    role: "Company",
     status: "active",
     joinDate: "2023-08-05",
   },
@@ -88,7 +97,7 @@ const mockUsers = [
     id: 6,
     name: "Rachel Green",
     email: "rachel@example.com",
-    role: "investor",
+    role: "Investor",
     status: "pending",
     joinDate: "2023-09-18",
   },
@@ -96,10 +105,38 @@ const mockUsers = [
 
 // Mock data for projects
 const mockProjects = [
-  { id: "project1", name: "Beirut Tech Hub", company: "Tech Innovations LLC", category: "technology", status: "pending_review", submittedDate: "2023-06-30" },
-  { id: "project2", name: "Cedar Heights Residences", company: "Cedar Investments", category: "real_estate", status: "pending_review", submittedDate: "2023-08-10" },
-  { id: "project3", name: "Sustainable Agriculture Initiative", company: "Green Fields Co.", category: "agriculture", status: "rejected", submittedDate: "2023-07-22" },
-  { id: "project4", name: "Education Tech Platform", company: "EduLearn", category: "education", status: "active", submittedDate: "2023-09-05" }
+  {
+    id: "project1",
+    name: "Beirut Tech Hub",
+    company: "Tech Innovations LLC",
+    category: "technology",
+    status: "pending_review",
+    submittedDate: "2023-06-30",
+  },
+  {
+    id: "project2",
+    name: "Cedar Heights Residences",
+    company: "Cedar Investments",
+    category: "real_estate",
+    status: "pending_review",
+    submittedDate: "2023-08-10",
+  },
+  {
+    id: "project3",
+    name: "Sustainable Agriculture Initiative",
+    company: "Green Fields Co.",
+    category: "agriculture",
+    status: "rejected",
+    submittedDate: "2023-07-22",
+  },
+  {
+    id: "project4",
+    name: "Education Tech Platform",
+    company: "EduLearn",
+    category: "education",
+    status: "active",
+    submittedDate: "2023-09-05",
+  },
 ];
 
 // Mock metrics
@@ -120,21 +157,37 @@ const mockMetrics = {
 const AdminDashboard = () => {
   const [userSearchQuery, setUserSearchQuery] = useState("");
   const [userRoleFilter, setUserRoleFilter] = useState<
-    "all" | "investor" | "company" | "admin"
-  >("all");
+    "All" | "Investor" | "Company" | "Admin"
+  >("All");
   const [userStatusFilter, setUserStatusFilter] = useState<
-    "all" | "active" | "inactive" | "pending"
-  >("all");
+    "All" | "active" | "inactive" | "pending"
+  >("All");
 
   // Projects
   const [projectCategoryFilter, setProjectCategoryFilter] = useState<
-    "all" | "technology" | "real_estate" | "agriculture" | "education"
-  >("all");
+    "All" | "technology" | "real_estate" | "agriculture" | "education"
+  >("All");
   const [projectStatusFilter, setProjectStatusFilter] = useState<
-    "all" | "active" | "pending_review" | "rejected"
-  >("all");
+    "All" | "active" | "pending_review" | "rejected"
+  >("All");
   const [projectSearchQuery, setProjectSearchQuery] = useState("");
+  const [notifications, setNotifications] = useState([]);
+  const [rejectionReason, setRejectionReason] = useState<string>("");
+  const [rejectingId, setRejectingId] = useState<number | null>(null);
 
+  const handleRejectClick = (notificationId: number) => {
+    setRejectingId(notificationId);
+    setRejectionReason("");
+  };
+
+  const handleSubmitRejection = async (
+    reqId: number,
+    notificationId: number
+  ) => {
+    await handleReject(reqId, notificationId, rejectionReason);
+    setRejectingId(null); // hide textarea after submission
+    setRejectionReason("");
+  };
   const filteredUsers = mockUsers.filter((user) => {
     // Apply search filter
     if (
@@ -144,10 +197,10 @@ const AdminDashboard = () => {
     ) {
       return false;
     }
-    if (userRoleFilter !== "all" && user.role !== userRoleFilter) {
+    if (userRoleFilter !== "All" && user.role !== userRoleFilter) {
       return false;
     }
-    if (userStatusFilter !== "all" && user.status !== userStatusFilter)
+    if (userStatusFilter !== "All" && user.status !== userStatusFilter)
       return false;
 
     // Apply role filter
@@ -173,11 +226,11 @@ const AdminDashboard = () => {
       return false;
     }
     if (
-      projectCategoryFilter !== "all" &&
+      projectCategoryFilter !== "All" &&
       project.category !== projectCategoryFilter
     )
       return false;
-    if (projectStatusFilter !== "all" && project.status !== projectStatusFilter)
+    if (projectStatusFilter !== "All" && project.status !== projectStatusFilter)
       return false;
     // Apply category filter
     if (projectCategoryFilter && project.category !== projectCategoryFilter) {
@@ -191,6 +244,177 @@ const AdminDashboard = () => {
 
     return true;
   });
+
+  const formatDate = (date: string | Date) => {
+    const parsedDate = typeof date === "string" ? new Date(date) : date;
+
+    if (isNaN(parsedDate.getTime())) {
+      console.error("Invalid date:", date);
+      return "Invalid date";
+    }
+
+    return parsedDate.toISOString().split("T")[0];
+  };
+
+  const {
+    data: payload,
+    error,
+    isSuccess,
+    isError,
+    isLoading,
+  } = useQuery({
+    queryKey: ["adminNotifications"],
+    queryFn: async () => {
+      try {
+        const response = await apiClient.get("/admin/notifications");
+        return response.data as ResponsePayload;
+      } catch (err) {
+        console.error("Failed to fetch notificaitons: ", err.message);
+      }
+    },
+  });
+
+  const unreadCount = notifications.filter((noti) => !noti.read).length;
+
+  const handleApprove = async (reqId: number, notificationId: number) => {
+    try {
+      const response = await apiClient.post(
+        "/admin/accept-request",
+        {
+          reqId,
+          notificationId,
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      toast({
+        description:
+          "An account will be created for this company and a confirmation email was sent successfully",
+        title: "Success!",
+        variant: "success",
+      });
+      setNotifications((prev) =>
+        prev.map((noti) =>
+          noti.id === notificationId ? { ...noti, isAccepted: true } : noti
+        )
+      );
+    } catch (ex) {
+      console.error("Error accepting signup req:", ex.message);
+      toast({
+        description: "Something went wrong",
+        title: "Error!",
+        variant: "error",
+      });
+    }
+  };
+  const handleReject = async (
+    reqId: number,
+    notificationId: number,
+    reason: string
+  ) => {
+    try {
+      const response = await apiClient.put(
+        "/admin/reject-request",
+        {
+          reqId,
+          notificationId,
+          reason,
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      setNotifications((prev) =>
+        prev.map((noti) =>
+          noti.id === notificationId ? { ...noti, isAccepted: false } : noti
+        )
+      );
+    } catch (ex) {
+      console.error("Error rejecting signup req:", ex.message);
+      toast({
+        description: "Something went wrong",
+        title: "Error!",
+        variant: "error",
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (isSuccess) {
+      console.log("Notifi: ", payload.data.notifications);
+
+      setNotifications(payload.data.notifications);
+    } else if (isError) {
+      setNotifications([]);
+    }
+  }, [isSuccess, isError, payload]);
+  const getNotificationIcon = (type: string) => {
+    switch (type) {
+      case "SIGNUP_REQUEST":
+        return (
+          <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+            <ShieldAlert className="h-6 w-6 text-blue-600" />
+          </div>
+        );
+      case "PROJECT_PROPOSAL":
+        return (
+          <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
+            <FileText className="h-6 w-6 text-green-600" />
+          </div>
+        );
+      case "APP_STAT_UPDATE":
+        return (
+          <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center">
+            <BarChart4 className="h-6 w-6 text-purple-600" />
+          </div>
+        );
+      default:
+        return (
+          <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
+            <AlertCircle className="h-6 w-6 text-gray-500" />
+          </div>
+        );
+    }
+  };
+
+  useEffect(() => {
+    const token = localStorage.getItem("authToken");
+
+    const adminId = getClaim("userId", token );
+    const eventSource = new EventSource(
+      `http://localhost:8080/sse/admin/company-signups?adminId=${adminId}`
+    );
+
+    eventSource.addEventListener("company-signup", (event: MessageEvent) => {
+      try {
+        console.log("New eevnt:", event);
+
+        const newRequest = JSON.parse(event.data);
+        console.log("New company signup request received via SSE:", newRequest);
+
+        setNotifications((prev) => [...prev, newRequest]);
+     
+      } catch (err) {
+        console.error("Failed to parse SSE data:", err);
+      }
+    });
+
+    eventSource.onerror = (err) => {
+      console.error("SSE connection error:", err);
+      eventSource.close();
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, []);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -212,6 +436,32 @@ const AdminDashboard = () => {
         return <Badge variant="outline">{status}</Badge>;
     }
   };
+
+  async function handleMarkAsRead(id: number) {
+    try {
+      const response = await apiClient.put("/admin/read-notification", id, {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      const notification = (response.data as ResponsePayload).data
+        ?.notification;
+      setNotifications((prev) =>
+        prev.map((noti) =>
+          noti.id === notification.id ? { ...notification } : noti
+        )
+      );
+    } catch (ex) {
+      console.error("Error reading notification :", ex.message);
+
+      toast({
+        title: "Error!",
+        description: "Something went wrong. Please try again",
+        variant: "error",
+      });
+    }
+  }
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -298,6 +548,17 @@ const AdminDashboard = () => {
               <TabsTrigger value="projects">Project Moderation</TabsTrigger>
               <TabsTrigger value="reports">Analytics & Reports</TabsTrigger>
               <TabsTrigger value="settings">Platform Settings</TabsTrigger>
+              <TabsTrigger value="notifications">
+                {unreadCount > 0 && (
+                  <Badge
+                    className="ml-2 bg-red-500 hover:bg-red-600 text-white"
+                    style={{ marginRight: "5px" }}
+                  >
+                    {unreadCount}
+                  </Badge>
+                )}
+                Notifications
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="users">
@@ -326,7 +587,7 @@ const AdminDashboard = () => {
                         value={userRoleFilter}
                         onValueChange={(value) =>
                           setUserRoleFilter(
-                            value as "all" | "investor" | "company" | "admin"
+                            value as "All" | "Investor" | "Company" | "Admin"
                           )
                         }
                       >
@@ -334,10 +595,10 @@ const AdminDashboard = () => {
                           <SelectValue placeholder="Role" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="all">All roles</SelectItem>
-                          <SelectItem value="investor">Investor</SelectItem>
-                          <SelectItem value="company">Company</SelectItem>
-                          <SelectItem value="admin">Admin</SelectItem>
+                          <SelectItem value="All">All roles</SelectItem>
+                          <SelectItem value="Investor">Investor</SelectItem>
+                          <SelectItem value="Company">Company</SelectItem>
+                          <SelectItem value="Admin">Admin</SelectItem>
                         </SelectContent>
                       </Select>
 
@@ -345,7 +606,7 @@ const AdminDashboard = () => {
                         value={userStatusFilter}
                         onValueChange={(value) =>
                           setUserStatusFilter(
-                            value as "all" | "active" | "inactive" | "pending"
+                            value as "All" | "active" | "inactive" | "pending"
                           )
                         }
                       >
@@ -353,7 +614,7 @@ const AdminDashboard = () => {
                           <SelectValue placeholder="Status" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="all">All statuses</SelectItem>
+                          <SelectItem value="All">All statuses</SelectItem>
                           <SelectItem value="active">Active</SelectItem>
                           <SelectItem value="inactive">Inactive</SelectItem>
                           <SelectItem value="pending">Pending</SelectItem>
@@ -451,7 +712,7 @@ const AdminDashboard = () => {
                         onValueChange={(value) =>
                           setProjectCategoryFilter(
                             value as
-                              | "all"
+                              | "All"
                               | "technology"
                               | "real_estate"
                               | "agriculture"
@@ -463,7 +724,7 @@ const AdminDashboard = () => {
                           <SelectValue placeholder="Category" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="all">All categories</SelectItem>
+                          <SelectItem value="All">All categories</SelectItem>
                           <SelectItem value="technology">Technology</SelectItem>
                           <SelectItem value="real_estate">
                             Real Estate
@@ -480,7 +741,7 @@ const AdminDashboard = () => {
                         onValueChange={(value) =>
                           setProjectStatusFilter(
                             value as
-                              | "all"
+                              | "All"
                               | "active"
                               | "pending_review"
                               | "rejected"
@@ -491,7 +752,7 @@ const AdminDashboard = () => {
                           <SelectValue placeholder="Status" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="all">All statuses</SelectItem>
+                          <SelectItem value="All">All statuses</SelectItem>
                           <SelectItem value="active">Active</SelectItem>
                           <SelectItem value="pending_review">
                             Pending Review
@@ -539,28 +800,34 @@ const AdminDashboard = () => {
                               </TableCell>
                               <TableCell className="space-x-2">
                                 <Button variant="outline" size="sm" asChild>
-                                  <Link to={`/project-review/${project.id}`}>Review</Link>
+                                  <Link to={`/project-review/${project.id}`}>
+                                    Review
+                                  </Link>
                                 </Button>
                                 {project.status === "pending_review" && (
                                   <>
-                                    <Button 
-                                      variant="outline" 
-                                      size="sm" 
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
                                       className="border-green-200 hover:border-green-300 hover:bg-green-50"
                                       asChild
                                     >
-                                      <Link to={`/project-review/${project.id}`}>
+                                      <Link
+                                        to={`/project-review/${project.id}`}
+                                      >
                                         <CheckCircle className="mr-1 h-3 w-3" />
                                         Approve
                                       </Link>
                                     </Button>
-                                    <Button 
-                                      variant="outline" 
-                                      size="sm" 
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
                                       className="border-red-200 hover:border-red-300 hover:bg-red-50"
                                       asChild
                                     >
-                                      <Link to={`/project-review/${project.id}`}>
+                                      <Link
+                                        to={`/project-review/${project.id}`}
+                                      >
                                         <AlertCircle className="mr-1 h-3 w-3" />
                                         Reject
                                       </Link>
@@ -865,6 +1132,158 @@ const AdminDashboard = () => {
                   </Button>
                 </CardFooter>
               </Card>
+            </TabsContent>
+
+            <TabsContent value="notifications">
+              <div>
+                <h2 className="text-xl font-semibold mb-4">
+                  Platform Notifications
+                </h2>
+                <div className="space-y-4">
+                  {notifications.map((notification) => (
+                    <Card
+                      key={notification.id}
+                      className={`transition-colors ${
+                        notification.read ? "bg-white" : "bg-yellow-50"
+                      }`}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex">
+                          <div className="mr-4 mt-0.5">
+                            {getNotificationIcon(notification.type)}
+                          </div>
+
+                          <div className="flex-1 flex flex-col justify-between">
+                            <div>
+                              <div className="flex justify-between">
+                                <h4 className="font-semibold">
+                                  {notification.title}
+                                </h4>
+                                <span className="text-xs text-gray-500">
+                                  {formatDate(notification.createdAt)}
+                                </span>
+                              </div>
+
+                              <p className="text-gray-600 mt-1">
+                                {notification.message}
+                              </p>
+
+                              {/* {notification.adminId && (
+                                <div className="mt-2">
+                                  <Link
+                                    to={`/admin/related/${notification.admin_id}`}
+                                    className="text-lebanese-navy hover:underline text-sm"
+                                  >
+                                    View Details →
+                                  </Link>
+                                </div>
+                              )} */}
+                              {!notification.read && (
+                                <div className="mt-2 flex justify-start">
+                                  <Button
+                                    size="sm"
+                                    className="bg-lebanese-navy hover:opacity-90 text-white justify-self-start"
+                                    onClick={() =>
+                                      handleMarkAsRead(notification.id)
+                                    }
+                                  >
+                                    Mark as Read
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Bottom Right Actions */}
+                            <div className="flex justify-end mt-4">
+                              {notification.type === "SIGNUP_REQUEST" &&
+                                (notification.isAccepted === null ? (
+                                  <div className="flex flex-col items-end gap-2 w-full">
+                                    {/* Action Buttons */}
+                                    <div className="flex gap-2">
+                                      <Button
+                                        size="sm"
+                                        className="bg-green-500 hover:bg-green-600 text-white"
+                                        onClick={() =>
+                                          handleApprove(
+                                            notification.reqId,
+                                            notification.id
+                                          )
+                                        }
+                                      >
+                                        <CheckCircle className="mr-1 h-4 w-4" />{" "}
+                                        Approve
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="destructive"
+                                        onClick={() =>
+                                          handleRejectClick(notification.id)
+                                        }
+                                      >
+                                        <AlertCircle className="mr-1 h-4 w-4" />{" "}
+                                        Reject
+                                      </Button>
+                                    </div>
+
+                                    {/* Rejection Reason Textbox */}
+                                    {rejectingId === notification.id && (
+                                      <div className="w-full max-w-md mt-2">
+                                        <textarea
+                                          className="w-full border rounded p-2 text-sm"
+                                          rows={3}
+                                          placeholder="Provide reason for rejection..."
+                                          value={rejectionReason}
+                                          onChange={(e) =>
+                                            setRejectionReason(e.target.value)
+                                          }
+                                        />
+                                        <div className="flex justify-end mt-2">
+                                          <Button
+                                            size="sm"
+                                            variant="destructive"
+                                            disabled={!rejectionReason.trim()}
+                                            onClick={() =>
+                                              handleSubmitRejection(
+                                                notification.reqId,
+                                                notification.id
+                                              )
+                                            }
+                                          >
+                                            Submit Rejection
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : notification.isAccepted ? (
+                                  <div className="flex items-center gap-1 text-green-600">
+                                    <CheckCircle className="h-4 w-4" />
+                                    <span className="text-sm font-medium">
+                                      Approved
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-1 text-red-600">
+                                    <Ban className="h-4 w-4" />
+                                    <span className="text-sm font-medium">
+                                      Rejected
+                                    </span>
+                                  </div>
+                                ))}
+                            </div>
+                          </div>
+
+                          {!notification.is_read && (
+                            <div className="ml-4">
+                              <Badge className="bg-blue-500">New</Badge>
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
             </TabsContent>
           </Tabs>
         </div>

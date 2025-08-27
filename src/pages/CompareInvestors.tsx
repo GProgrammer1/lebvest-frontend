@@ -1,10 +1,21 @@
-
 import { useState, useEffect } from "react";
 import { Helmet } from "react-helmet";
 import { useParams, Link } from "react-router-dom";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { ArrowLeft } from "lucide-react";
@@ -23,10 +34,10 @@ const mockInvestors = [
     returns: {
       oneYear: 8.5,
       threeYear: 12.2,
-      fiveYear: 9.7
+      fiveYear: 9.7,
     },
     preferredCategories: ["real_estate", "technology"],
-    yearsInvesting: 5
+    yearsInvesting: 5,
   },
   {
     id: "inv2",
@@ -40,10 +51,10 @@ const mockInvestors = [
     returns: {
       oneYear: 14.2,
       threeYear: 18.5,
-      fiveYear: 16.1
+      fiveYear: 16.1,
     },
     preferredCategories: ["startup", "healthcare", "technology"],
-    yearsInvesting: 7
+    yearsInvesting: 7,
   },
   {
     id: "inv3",
@@ -57,10 +68,10 @@ const mockInvestors = [
     returns: {
       oneYear: 4.2,
       threeYear: 5.5,
-      fiveYear: 6.1
+      fiveYear: 6.1,
     },
     preferredCategories: ["government_bonds", "real_estate"],
-    yearsInvesting: 3
+    yearsInvesting: 3,
   },
   {
     id: "inv4",
@@ -74,10 +85,10 @@ const mockInvestors = [
     returns: {
       oneYear: 9.8,
       threeYear: 11.5,
-      fiveYear: 10.2
+      fiveYear: 10.2,
     },
     preferredCategories: ["technology", "education"],
-    yearsInvesting: 6
+    yearsInvesting: 6,
   },
   {
     id: "inv5",
@@ -91,17 +102,17 @@ const mockInvestors = [
     returns: {
       oneYear: 16.8,
       threeYear: 20.5,
-      fiveYear: 18.2
+      fiveYear: 18.2,
     },
     preferredCategories: ["healthcare", "technology", "startup"],
-    yearsInvesting: 10
-  }
+    yearsInvesting: 10,
+  },
 ];
 
 const CompareInvestors = () => {
   const { id } = useParams<{ id: string }>();
   const [primaryInvestor, setPrimaryInvestor] = useState<any>(null);
-  const [secondaryInvestorId, setSecondaryInvestorId] = useState<string>("");
+  const [secondaryInvestorId, setSecondaryInvestorId] = useState<string>("__none__");
   const [secondaryInvestor, setSecondaryInvestor] = useState<any>(null);
   const [availableInvestors, setAvailableInvestors] = useState<any[]>([]);
 
@@ -109,7 +120,7 @@ const CompareInvestors = () => {
     // Find primary investor
     const primary = mockInvestors.find((investor) => investor.id === id);
     setPrimaryInvestor(primary || null);
-    
+
     // Filter available investors (exclude primary)
     const others = mockInvestors.filter((investor) => investor.id !== id);
     setAvailableInvestors(others);
@@ -117,8 +128,10 @@ const CompareInvestors = () => {
 
   useEffect(() => {
     // Find secondary investor if ID is selected
-    if (secondaryInvestorId) {
-      const secondary = mockInvestors.find((investor) => investor.id === secondaryInvestorId);
+    if (secondaryInvestorId && secondaryInvestorId !== "__none__") {
+      const secondary = mockInvestors.find(
+        (investor) => investor.id === secondaryInvestorId
+      );
       setSecondaryInvestor(secondary || null);
     } else {
       setSecondaryInvestor(null);
@@ -126,15 +139,19 @@ const CompareInvestors = () => {
   }, [secondaryInvestorId]);
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
     }).format(amount);
   };
 
   const getComparisonStyle = (primary: number, secondary: number) => {
     if (!secondary) return "";
-    return primary > secondary ? "text-green-600" : primary < secondary ? "text-red-600" : "";
+    return primary > secondary
+      ? "text-green-600"
+      : primary < secondary
+      ? "text-red-600"
+      : "";
   };
 
   const getRiskLevelBadgeClass = (riskLevel: string) => {
@@ -157,9 +174,12 @@ const CompareInvestors = () => {
         <main className="flex-grow p-6 bg-gray-50">
           <div className="max-w-7xl mx-auto">
             <div className="text-center py-12">
-              <h2 className="text-xl font-medium text-gray-900">Investor Not Found</h2>
+              <h2 className="text-xl font-medium text-gray-900">
+                Investor Not Found
+              </h2>
               <p className="mt-2 text-gray-500">
-                The investor you're looking for doesn't exist or you don't have permission to view their profile.
+                The investor you're looking for doesn't exist or you don't have
+                permission to view their profile.
               </p>
               <Button className="mt-4" asChild>
                 <Link to="/company-dashboard">Return to Dashboard</Link>
@@ -187,16 +207,23 @@ const CompareInvestors = () => {
                 Back to Dashboard
               </Link>
             </Button>
-            <h1 className="text-2xl font-bold text-lebanese-navy">Compare Investors</h1>
-            <p className="text-gray-600">Compare investment profiles and portfolios side by side</p>
+            <h1 className="text-2xl font-bold text-lebanese-navy">
+              Compare Investors
+            </h1>
+            <p className="text-gray-600">
+              Compare investment profiles and portfolios side by side
+            </p>
           </div>
 
           <div className="mb-6">
             <Card>
               <CardHeader>
-                <CardTitle className="text-xl">Select Investors to Compare</CardTitle>
+                <CardTitle className="text-xl">
+                  Select Investors to Compare
+                </CardTitle>
                 <CardDescription>
-                  {primaryInvestor.name} is selected as the primary investor. Choose another investor to compare with.
+                  {primaryInvestor.name} is selected as the primary investor.
+                  Choose another investor to compare with.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -209,12 +236,17 @@ const CompareInvestors = () => {
                   </div>
                   <div className="w-1/2">
                     <p className="text-sm font-medium mb-1">Compare With</p>
-                    <Select value={secondaryInvestorId} onValueChange={setSecondaryInvestorId}>
+                    <Select
+                      value={secondaryInvestorId}
+                      onValueChange={setSecondaryInvestorId}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Select an investor to compare" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Select an investor</SelectItem>
+                        <SelectItem value="__none__" disabled>
+                          Select an investor to compare
+                        </SelectItem>
                         {availableInvestors.map((investor) => (
                           <SelectItem key={investor.id} value={investor.id}>
                             {investor.name}
@@ -232,67 +264,104 @@ const CompareInvestors = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Card>
                 <CardHeader className="bg-gray-50 border-b">
-                  <CardTitle className="text-xl">{primaryInvestor.name}</CardTitle>
+                  <CardTitle className="text-xl">
+                    {primaryInvestor.name}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="p-6 space-y-4">
                   <div>
-                    <h3 className="text-sm font-medium text-gray-500 mb-1">Portfolio Size</h3>
-                    <p className="text-2xl font-bold">{formatCurrency(primaryInvestor.portfolioSize)}</p>
+                    <h3 className="text-sm font-medium text-gray-500 mb-1">
+                      Portfolio Size
+                    </h3>
+                    <p className="text-2xl font-bold">
+                      {formatCurrency(primaryInvestor.portfolioSize)}
+                    </p>
                   </div>
-                  
+
                   <div>
-                    <h3 className="text-sm font-medium text-gray-500 mb-1">Risk Level</h3>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRiskLevelBadgeClass(primaryInvestor.riskLevel)}`}>
-                      {primaryInvestor.riskLevel.charAt(0).toUpperCase() + primaryInvestor.riskLevel.slice(1)}
+                    <h3 className="text-sm font-medium text-gray-500 mb-1">
+                      Risk Level
+                    </h3>
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs font-medium ${getRiskLevelBadgeClass(
+                        primaryInvestor.riskLevel
+                      )}`}
+                    >
+                      {primaryInvestor.riskLevel.charAt(0).toUpperCase() +
+                        primaryInvestor.riskLevel.slice(1)}
                     </span>
                   </div>
 
                   <div>
-                    <h3 className="text-sm font-medium text-gray-500 mb-1">Interested In</h3>
+                    <h3 className="text-sm font-medium text-gray-500 mb-1">
+                      Interested In
+                    </h3>
                     <div className="flex flex-wrap">
                       {primaryInvestor.sectors.map((sector: string) => (
-                        <span 
+                        <span
                           key={sector}
                           className="inline-block bg-gray-100 rounded-full px-2 py-1 text-xs font-medium text-gray-700 mr-1 mb-1"
                         >
-                          {sector.replace('_', ' ')}
+                          {sector.replace("_", " ")}
                         </span>
                       ))}
                     </div>
                   </div>
 
                   <div>
-                    <h3 className="text-sm font-medium text-gray-500 mb-1">Investment Activity</h3>
+                    <h3 className="text-sm font-medium text-gray-500 mb-1">
+                      Investment Activity
+                    </h3>
                     <div className="space-y-2">
                       <div className="flex justify-between">
-                        <span className="text-gray-700">Total Investments:</span>
-                        <span className="font-medium">{primaryInvestor.totalInvestments}</span>
+                        <span className="text-gray-700">
+                          Total Investments:
+                        </span>
+                        <span className="font-medium">
+                          {primaryInvestor.totalInvestments}
+                        </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-700">Avg. Investment Size:</span>
-                        <span className="font-medium">{formatCurrency(primaryInvestor.averageInvestmentSize)}</span>
+                        <span className="text-gray-700">
+                          Avg. Investment Size:
+                        </span>
+                        <span className="font-medium">
+                          {formatCurrency(
+                            primaryInvestor.averageInvestmentSize
+                          )}
+                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-700">Years Investing:</span>
-                        <span className="font-medium">{primaryInvestor.yearsInvesting}</span>
+                        <span className="font-medium">
+                          {primaryInvestor.yearsInvesting}
+                        </span>
                       </div>
                     </div>
                   </div>
 
                   <div>
-                    <h3 className="text-sm font-medium text-gray-500 mb-1">Historical Returns</h3>
+                    <h3 className="text-sm font-medium text-gray-500 mb-1">
+                      Historical Returns
+                    </h3>
                     <div className="space-y-2">
                       <div className="flex justify-between">
                         <span className="text-gray-700">1-Year Return:</span>
-                        <span className="font-medium">{primaryInvestor.returns.oneYear}%</span>
+                        <span className="font-medium">
+                          {primaryInvestor.returns.oneYear}%
+                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-700">3-Year Return:</span>
-                        <span className="font-medium">{primaryInvestor.returns.threeYear}%</span>
+                        <span className="font-medium">
+                          {primaryInvestor.returns.threeYear}%
+                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-700">5-Year Return:</span>
-                        <span className="font-medium">{primaryInvestor.returns.fiveYear}%</span>
+                        <span className="font-medium">
+                          {primaryInvestor.returns.fiveYear}%
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -301,57 +370,102 @@ const CompareInvestors = () => {
 
               <Card className={!secondaryInvestor ? "opacity-60" : ""}>
                 <CardHeader className="bg-gray-50 border-b">
-                  <CardTitle className="text-xl">{secondaryInvestor ? secondaryInvestor.name : "Select an investor"}</CardTitle>
+                  <CardTitle className="text-xl">
+                    {secondaryInvestor
+                      ? secondaryInvestor.name
+                      : "Select an investor"}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="p-6 space-y-4">
                   {secondaryInvestor ? (
                     <>
                       <div>
-                        <h3 className="text-sm font-medium text-gray-500 mb-1">Portfolio Size</h3>
-                        <p className={`text-2xl font-bold ${getComparisonStyle(secondaryInvestor.portfolioSize, primaryInvestor.portfolioSize)}`}>
+                        <h3 className="text-sm font-medium text-gray-500 mb-1">
+                          Portfolio Size
+                        </h3>
+                        <p
+                          className={`text-2xl font-bold ${getComparisonStyle(
+                            secondaryInvestor.portfolioSize,
+                            primaryInvestor.portfolioSize
+                          )}`}
+                        >
                           {formatCurrency(secondaryInvestor.portfolioSize)}
                         </p>
                       </div>
-                      
+
                       <div>
-                        <h3 className="text-sm font-medium text-gray-500 mb-1">Risk Level</h3>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRiskLevelBadgeClass(secondaryInvestor.riskLevel)}`}>
-                          {secondaryInvestor.riskLevel.charAt(0).toUpperCase() + secondaryInvestor.riskLevel.slice(1)}
+                        <h3 className="text-sm font-medium text-gray-500 mb-1">
+                          Risk Level
+                        </h3>
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-medium ${getRiskLevelBadgeClass(
+                            secondaryInvestor.riskLevel
+                          )}`}
+                        >
+                          {secondaryInvestor.riskLevel.charAt(0).toUpperCase() +
+                            secondaryInvestor.riskLevel.slice(1)}
                         </span>
                       </div>
 
                       <div>
-                        <h3 className="text-sm font-medium text-gray-500 mb-1">Interested In</h3>
+                        <h3 className="text-sm font-medium text-gray-500 mb-1">
+                          Interested In
+                        </h3>
                         <div className="flex flex-wrap">
                           {secondaryInvestor.sectors.map((sector: string) => (
-                            <span 
+                            <span
                               key={sector}
                               className="inline-block bg-gray-100 rounded-full px-2 py-1 text-xs font-medium text-gray-700 mr-1 mb-1"
                             >
-                              {sector.replace('_', ' ')}
+                              {sector.replace("_", " ")}
                             </span>
                           ))}
                         </div>
                       </div>
 
                       <div>
-                        <h3 className="text-sm font-medium text-gray-500 mb-1">Investment Activity</h3>
+                        <h3 className="text-sm font-medium text-gray-500 mb-1">
+                          Investment Activity
+                        </h3>
                         <div className="space-y-2">
                           <div className="flex justify-between">
-                            <span className="text-gray-700">Total Investments:</span>
-                            <span className={`font-medium ${getComparisonStyle(secondaryInvestor.totalInvestments, primaryInvestor.totalInvestments)}`}>
+                            <span className="text-gray-700">
+                              Total Investments:
+                            </span>
+                            <span
+                              className={`font-medium ${getComparisonStyle(
+                                secondaryInvestor.totalInvestments,
+                                primaryInvestor.totalInvestments
+                              )}`}
+                            >
                               {secondaryInvestor.totalInvestments}
                             </span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-700">Avg. Investment Size:</span>
-                            <span className={`font-medium ${getComparisonStyle(secondaryInvestor.averageInvestmentSize, primaryInvestor.averageInvestmentSize)}`}>
-                              {formatCurrency(secondaryInvestor.averageInvestmentSize)}
+                            <span className="text-gray-700">
+                              Avg. Investment Size:
+                            </span>
+                            <span
+                              className={`font-medium ${getComparisonStyle(
+                                secondaryInvestor.averageInvestmentSize,
+                                primaryInvestor.averageInvestmentSize
+                              )}`}
+                            >
+                              {formatCurrency(
+                                secondaryInvestor.averageInvestmentSize
+                              )}
                             </span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-700">Years Investing:</span>
-                            <span className={`font-medium ${getComparisonStyle(secondaryInvestor.yearsInvesting, primaryInvestor.yearsInvesting)}`}>
+                            <span className="text-gray-700">
+                              Years Investing:
+                            </span>
+                            <span
+                              className={`font-medium ${getComparisonStyle(
+                                secondaryInvestor.yearsInvesting,
+                                primaryInvestor.yearsInvesting
+                              )}`}
+                            >
                               {secondaryInvestor.yearsInvesting}
                             </span>
                           </div>
@@ -359,23 +473,46 @@ const CompareInvestors = () => {
                       </div>
 
                       <div>
-                        <h3 className="text-sm font-medium text-gray-500 mb-1">Historical Returns</h3>
+                        <h3 className="text-sm font-medium text-gray-500 mb-1">
+                          Historical Returns
+                        </h3>
                         <div className="space-y-2">
                           <div className="flex justify-between">
-                            <span className="text-gray-700">1-Year Return:</span>
-                            <span className={`font-medium ${getComparisonStyle(secondaryInvestor.returns.oneYear, primaryInvestor.returns.oneYear)}`}>
+                            <span className="text-gray-700">
+                              1-Year Return:
+                            </span>
+                            <span
+                              className={`font-medium ${getComparisonStyle(
+                                secondaryInvestor.returns.oneYear,
+                                primaryInvestor.returns.oneYear
+                              )}`}
+                            >
                               {secondaryInvestor.returns.oneYear}%
                             </span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-700">3-Year Return:</span>
-                            <span className={`font-medium ${getComparisonStyle(secondaryInvestor.returns.threeYear, primaryInvestor.returns.threeYear)}`}>
+                            <span className="text-gray-700">
+                              3-Year Return:
+                            </span>
+                            <span
+                              className={`font-medium ${getComparisonStyle(
+                                secondaryInvestor.returns.threeYear,
+                                primaryInvestor.returns.threeYear
+                              )}`}
+                            >
                               {secondaryInvestor.returns.threeYear}%
                             </span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-700">5-Year Return:</span>
-                            <span className={`font-medium ${getComparisonStyle(secondaryInvestor.returns.fiveYear, primaryInvestor.returns.fiveYear)}`}>
+                            <span className="text-gray-700">
+                              5-Year Return:
+                            </span>
+                            <span
+                              className={`font-medium ${getComparisonStyle(
+                                secondaryInvestor.returns.fiveYear,
+                                primaryInvestor.returns.fiveYear
+                              )}`}
+                            >
                               {secondaryInvestor.returns.fiveYear}%
                             </span>
                           </div>
@@ -385,8 +522,12 @@ const CompareInvestors = () => {
                   ) : (
                     <div className="flex items-center justify-center h-64">
                       <div className="text-center">
-                        <p className="text-lg font-medium text-gray-500">Select an investor to compare</p>
-                        <p className="text-sm text-gray-400 mt-2">Choose from the dropdown menu above</p>
+                        <p className="text-lg font-medium text-gray-500">
+                          Select an investor to compare
+                        </p>
+                        <p className="text-sm text-gray-400 mt-2">
+                          Choose from the dropdown menu above
+                        </p>
                       </div>
                     </div>
                   )}
