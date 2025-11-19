@@ -1,16 +1,15 @@
 
 import React from "react";
-import { InvestorProfile } from "@/lib/types";
+import { InvestorDashboard } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { mockInvestments } from "@/lib/mockData";
 import { Link } from "react-router-dom";
 
 interface DashboardPageProps {
-  investor: InvestorProfile;
+  dashboard: InvestorDashboard;
 }
 
 const formatCurrency = (amount: number): string => {
@@ -29,20 +28,10 @@ const formatDate = (dateString: string): string => {
   });
 };
 
-const DashboardPage: React.FC<DashboardPageProps> = ({ investor }) => {
-  // Find full investments from mock data
-  const investorInvestments = investor.investments.map(investment => {
-    const fullInvestment = mockInvestments.find(inv => inv.id === investment.investmentId);
-    return {
-      ...investment,
-      details: fullInvestment
-    };
-  });
-
-  // Find watchlist items from mock data
-  const watchlistItems = investor.watchlist.map(id => {
-    return mockInvestments.find(inv => inv.id === id);
-  }).filter(item => item !== undefined);
+const DashboardPage: React.FC<DashboardPageProps> = ({ dashboard }) => {
+  const { investor, investments, watchlist, notifications, goals, recommendations } = dashboard;
+  const investorInvestments = investments;
+  const watchlistItems = watchlist;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -87,7 +76,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ investor }) => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(investor.totalInvested)}</div>
-            <p className="text-sm text-gray-500">Across {investor.investments.length} investments</p>
+            <p className="text-sm text-gray-500">Across {investments.length} investments</p>
           </CardContent>
         </Card>
         
@@ -98,7 +87,10 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ investor }) => {
           <CardContent>
             <div className="text-2xl font-bold text-lebanese-green">{formatCurrency(investor.totalReturns)}</div>
             <p className="text-sm text-gray-500">
-              {((investor.totalReturns / investor.totalInvested) * 100).toFixed(1)}% return
+              {investor.totalInvested > 0
+                ? ((investor.totalReturns / investor.totalInvested) * 100).toFixed(1)
+                : "0.0"
+              }% return
             </p>
           </CardContent>
         </Card>
@@ -117,14 +109,16 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ investor }) => {
           <div>
             <h2 className="text-xl font-semibold mb-4">Your Investments</h2>
             <div className="grid grid-cols-1 gap-6">
-              {investorInvestments.map((investment) => (
-                <Card key={investment.investmentId} className="overflow-hidden">
+              {investorInvestments.map((investment) => {
+                const details = investment.investment;
+                return (
+                  <Card key={investment.id} className="overflow-hidden">
                   <div className="flex flex-col md:flex-row">
-                    {investment.details && (
+                    {details && details.imageUrl && (
                       <div className="w-full md:w-1/4">
                         <img
-                          src={investment.details.imageUrl}
-                          alt={investment.details.title}
+                          src={details.imageUrl}
+                          alt={details.title}
                           className="w-full h-full object-cover"
                           style={{ maxHeight: '200px' }}
                         />
@@ -133,20 +127,20 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ investor }) => {
                     <div className="flex-1 p-6">
                       <div className="flex flex-col md:flex-row md:justify-between md:items-start mb-4">
                         <div>
-                          <Link to={`/investments/${investment.investmentId}`} className="text-lg font-semibold hover:underline">
-                            {investment.details ? investment.details.title : `Investment #${investment.investmentId}`}
+                          <Link to={`/investments/${details?.id ?? investment.id}`} className="text-lg font-semibold hover:underline">
+                            {details ? details.title : `Investment #${investment.id}`}
                           </Link>
                           <p className="text-sm text-gray-500 mb-2">
-                            {investment.details ? investment.details.companyName : 'Loading...'}
+                            {details ? details.companyName : 'Loading...'}
                           </p>
                           <div className="flex flex-wrap gap-2 mb-2">
-                            {investment.details && (
+                            {details && (
                               <>
                                 <Badge variant="outline" className="capitalize">
-                                  {investment.details.category.replace('_', ' ')}
+                                  {details.category.replace('_', ' ')}
                                 </Badge>
                                 <Badge variant="outline" className="capitalize">
-                                  {investment.details.location.replace('_', ' ')}
+                                  {details.location.replace('_', ' ')}
                                 </Badge>
                               </>
                             )}
@@ -159,7 +153,10 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ investor }) => {
                           </p>
                           <p className={`text-sm ${investment.currentValue >= investment.amount ? 'text-green-600' : 'text-red-600'}`}>
                             {investment.currentValue >= investment.amount ? '+' : ''}
-                            {(((investment.currentValue - investment.amount) / investment.amount) * 100).toFixed(1)}%
+                            {investment.amount > 0
+                              ? (((investment.currentValue - investment.amount) / investment.amount) * 100).toFixed(1)
+                              : "0.0"
+                            }%
                           </p>
                         </div>
                       </div>
@@ -171,19 +168,20 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ investor }) => {
                         </div>
                         <div>
                           <p className="text-sm text-gray-500">Investment Date</p>
-                          <p className="font-medium">{formatDate(investment.date)}</p>
+                          <p className="font-medium">{formatDate(investment.investedAt)}</p>
                         </div>
-                        {investment.details && (
+                        {details && (
                           <div>
                             <p className="text-sm text-gray-500">Expected Return</p>
-                            <p className="font-medium">{investment.details.expectedReturn}%</p>
+                            <p className="font-medium">{details.expectedReturn}%</p>
                           </div>
                         )}
                       </div>
                     </div>
                   </div>
-                </Card>
-              ))}
+                  </Card>
+                );
+              })}
             </div>
           </div>
         </TabsContent>
@@ -192,11 +190,11 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ investor }) => {
           <div>
             <h2 className="text-xl font-semibold mb-4">Your Watchlist</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {watchlistItems.map((item) => item && (
+              {watchlistItems.map((item) => (
                 <Card key={item.id} className="overflow-hidden">
                   <div className="h-40">
                     <img
-                      src={item.imageUrl}
+                      src={item.imageUrl || '/placeholder.svg'}
                       alt={item.title}
                       className="w-full h-full object-cover"
                     />
@@ -210,9 +208,9 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ investor }) => {
                       <span className="text-sm text-gray-600">Target</span>
                       <span className="font-medium">{formatCurrency(item.targetAmount)}</span>
                     </div>
-                    <Progress value={(item.raisedAmount / item.targetAmount) * 100} className="h-2 mb-2" />
+                    <Progress value={item.targetAmount > 0 ? (item.raisedAmount / item.targetAmount) * 100 : 0} className="h-2 mb-2" />
                     <div className="flex justify-between text-xs text-gray-500 mb-4">
-                      <span>{((item.raisedAmount / item.targetAmount) * 100).toFixed(0)}% raised</span>
+                      <span>{item.targetAmount > 0 ? ((item.raisedAmount / item.targetAmount) * 100).toFixed(0) : "0"}% raised</span>
                       <span>Closes {formatDate(item.deadline)}</span>
                     </div>
                     <div className="flex justify-between">
@@ -234,8 +232,8 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ investor }) => {
           <div>
             <h2 className="text-xl font-semibold mb-4">Investment Goals</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {investor.goals.map((goal) => {
-                const progressPercentage = (goal.currentAmount / goal.targetAmount) * 100;
+              {goals.map((goal) => {
+                const progressPercentage = goal.targetAmount > 0 ? (goal.currentAmount / goal.targetAmount) * 100 : 0;
                 
                 return (
                   <Card key={goal.id} className="overflow-hidden">
@@ -286,7 +284,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ investor }) => {
           <div>
             <h2 className="text-xl font-semibold mb-4">Your Notifications</h2>
             <div className="space-y-4">
-              {investor.notifications.map((notification) => (
+              {notifications.map((notification) => (
                 <Card key={notification.id} className={`${notification.read ? 'bg-white' : 'bg-blue-50'} transition-colors`}>
                   <CardContent className="p-4">
                     <div className="flex items-start">
@@ -323,7 +321,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ investor }) => {
                       <div className="flex-1">
                         <div className="flex justify-between">
                           <h4 className="font-semibold">{notification.title}</h4>
-                          <span className="text-xs text-gray-500">{formatDate(notification.date)}</span>
+                          <span className="text-xs text-gray-500">{formatDate(notification.notifiedAt)}</span>
                         </div>
                         <p className="text-gray-600 mt-1">{notification.message}</p>
                         {notification.relatedInvestmentId && (
@@ -354,36 +352,42 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ investor }) => {
       {/* Recommended Investments */}
       <section className="mb-8">
         <h2 className="text-xl font-semibold mb-4">Recommended for You</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {mockInvestments.slice(0, 3).map((investment) => (
-            <Card key={investment.id} className="overflow-hidden">
-              <div className="h-40">
-                <img
-                  src={investment.imageUrl}
-                  alt={investment.title}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <CardContent className="p-4">
-                <Link to={`/investments/${investment.id}`} className="text-lg font-semibold hover:underline">
-                  {investment.title}
-                </Link>
-                <p className="text-sm text-gray-500 mb-2">{investment.companyName}</p>
-                <div className="flex justify-between mb-2">
-                  <span className="text-sm">Expected Return</span>
-                  <span className="font-semibold text-lebanese-green">{investment.expectedReturn}%</span>
+        {recommendations.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-gray-500">
+            Check back soon for personalized investment ideas.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {recommendations.map((investment) => (
+              <Card key={investment.id} className="overflow-hidden">
+                <div className="h-40">
+                  <img
+                    src={investment.imageUrl || '/placeholder.svg'}
+                    alt={investment.title}
+                    className="w-full h-full object-cover"
+                  />
                 </div>
-                <div className="flex justify-between mb-4">
-                  <span className="text-sm">Min. Investment</span>
-                  <span className="font-semibold">{formatCurrency(investment.minInvestment)}</span>
-                </div>
-                <Button className="w-full bg-lebanese-navy hover:bg-opacity-90">
-                  View Opportunity
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                <CardContent className="p-4">
+                  <Link to={`/investments/${investment.id}`} className="text-lg font-semibold hover:underline">
+                    {investment.title}
+                  </Link>
+                  <p className="text-sm text-gray-500 mb-2">{investment.companyName}</p>
+                  <div className="flex justify-between mb-2">
+                    <span className="text-sm">Expected Return</span>
+                    <span className="font-semibold text-lebanese-green">{investment.expectedReturn}%</span>
+                  </div>
+                  <div className="flex justify-between mb-4">
+                    <span className="text-sm">Min. Investment</span>
+                    <span className="font-semibold">{formatCurrency(investment.minInvestment)}</span>
+                  </div>
+                  <Button className="w-full bg-lebanese-navy hover:bg-opacity-90">
+                    View Opportunity
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );

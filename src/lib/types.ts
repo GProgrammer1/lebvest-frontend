@@ -206,6 +206,83 @@ export interface CompanyProfile {
   }[];
 }
 
+export interface ApiResponse<T> {
+  status: number;
+  message: string;
+  data: T;
+  timestamp: string;
+}
+
+export interface InvestmentSummary {
+  id: number;
+  title: string;
+  companyName: string;
+  category: string;
+  riskLevel: string;
+  expectedReturn: number;
+  minInvestment: number;
+  targetAmount: number;
+  raisedAmount: number;
+  location: string;
+  investmentType: string;
+  durationMonths: number;
+  imageUrl?: string | null;
+  fundingStage?: string | null;
+  deadline: string;
+  createdAt: string;
+}
+
+export interface InvestorInvestmentSummary {
+  id: number;
+  amount: number;
+  currentValue: number;
+  investedAt: string;
+  investment: InvestmentSummary;
+}
+
+export interface InvestorNotificationSummary {
+  id: number;
+  type: "new_opportunity" | "update" | "threshold" | "news" | string | null;
+  title: string;
+  message: string;
+  notifiedAt: string;
+  read: boolean;
+  relatedInvestmentId?: number | null;
+}
+
+export interface InvestorGoalSummary {
+  id: number;
+  title: string;
+  targetAmount: number;
+  currentAmount: number;
+  deadline: string;
+}
+
+export interface InvestorPreferencesSummary {
+  categories: string[];
+  riskLevels: string[];
+  locations: string[];
+}
+
+export interface InvestorSummary {
+  id: number;
+  name: string;
+  email: string;
+  portfolioValue: number;
+  totalInvested: number;
+  totalReturns: number;
+  preferences: InvestorPreferencesSummary;
+}
+
+export interface InvestorDashboard {
+  investor: InvestorSummary;
+  investments: InvestorInvestmentSummary[];
+  watchlist: InvestmentSummary[];
+  notifications: InvestorNotificationSummary[];
+  goals: InvestorGoalSummary[];
+  recommendations: InvestmentSummary[];
+}
+
 export interface ResponsePayload {
   status: number;
   message: string;
