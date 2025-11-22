@@ -42,7 +42,7 @@ const App = () => (
           <Route path="/compare-investors/:id" element={<CompareInvestors />} />
           <Route path="/project-review/:id" element={<ProjectReview />} />
           <Route path="/list-project" element={<ListProject />} />
-          <Route path="/signin" element={<SignIn />} />
+          <Route path="/sign-in" element={<SignIn />} />
           <Route path="/register" element={<Register />} />
           <Route path="/about" element={<About />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -50,7 +50,7 @@ const App = () => (
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/faq" element={<FAQ />} />
           <Route path="/how-it-works" element={<HowItWorks />} />
-          <Route path="/reset-password/:token" element={<ResetPassword/>}/>
+          <Route path="/reset-password/:token" element={<ResetPassword />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

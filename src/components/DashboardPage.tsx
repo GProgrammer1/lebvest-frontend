@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useCallback } from "react";
 import { InvestorProfile } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { mockInvestments } from "@/lib/mockData";
 import { Link } from "react-router-dom";
+import { GoalForm, GoalList, GoalFormValues } from "@/components/goals";
+import { useGoals } from "@/hooks/useGoals";
 
 interface DashboardPageProps {
   investor: InvestorProfile;
@@ -43,6 +45,77 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ investor }) => {
   const watchlistItems = investor.watchlist.map(id => {
     return mockInvestments.find(inv => inv.id === id);
   }).filter(item => item !== undefined);
+
+  const { goals, isCreating, updatingGoalId, deletingGoalId, createGoal, updateGoal, deleteGoal } = useGoals(investor.goals);
+
+  const handleCreateGoal = useCallback(
+    async (values: GoalFormValues) => {
+      try {
+        const deadlineDate = new Date(values.deadline);
+        if (isNaN(deadlineDate.getTime())) {
+          throw new Error('Invalid deadline date');
+        }
+        
+        // Spring Boot expects LocalDate format (YYYY-MM-DD), not ISO string
+        const deadlineLocalDate = values.deadline; // Already in YYYY-MM-DD format from date input
+        
+        // Ensure targetAmount is positive
+        if (values.targetAmount <= 0) {
+          throw new Error('Target amount must be greater than zero');
+        }
+
+        await createGoal({
+          title: values.title,
+          targetAmount: values.targetAmount,
+          deadline: deadlineLocalDate, // Use YYYY-MM-DD format for Spring Boot LocalDate
+          description: values.description?.trim() || undefined,
+          currentAmount: values.currentAmount || 0,
+        });
+      } catch (error) {
+        // Error is already handled by useGoals hook
+        console.error('Failed to create goal:', error);
+      }
+    },
+    [createGoal]
+  );
+
+  const handleUpdateGoal = useCallback(
+    async (goalId: string, values: GoalFormValues) => {
+      try {
+        const deadlineDate = new Date(values.deadline);
+        if (isNaN(deadlineDate.getTime())) {
+          throw new Error('Invalid deadline date');
+        }
+        
+        // Spring Boot expects LocalDate format (YYYY-MM-DD), not ISO string
+        const deadlineLocalDate = values.deadline; // Already in YYYY-MM-DD format from date input
+        
+        // Ensure targetAmount is positive
+        if (values.targetAmount <= 0) {
+          throw new Error('Target amount must be greater than zero');
+        }
+
+        await updateGoal(goalId, {
+          title: values.title,
+          targetAmount: values.targetAmount,
+          deadline: deadlineLocalDate, // Use YYYY-MM-DD format for Spring Boot LocalDate
+          description: values.description?.trim() || undefined,
+          currentAmount: values.currentAmount || 0,
+        });
+      } catch (error) {
+        // Error is already handled by useGoals hook
+        console.error('Failed to update goal:', error);
+      }
+    },
+    [updateGoal]
+  );
+
+  const handleDeleteGoal = useCallback(
+    async (goalId: string) => {
+      await deleteGoal(goalId);
+    },
+    [deleteGoal]
+  );
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -230,55 +303,22 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ investor }) => {
           </div>
         </TabsContent>
         
-        <TabsContent value="goals" className="space-y-8">
-          <div>
-            <h2 className="text-xl font-semibold mb-4">Investment Goals</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {investor.goals.map((goal) => {
-                const progressPercentage = (goal.currentAmount / goal.targetAmount) * 100;
-                
-                return (
-                  <Card key={goal.id} className="overflow-hidden">
-                    <CardHeader>
-                      <CardTitle>{goal.title}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        <div>
-                          <div className="flex justify-between mb-2">
-                            <span className="text-sm text-gray-500">Progress</span>
-                            <span className="text-sm font-medium">{progressPercentage.toFixed(0)}%</span>
-                          </div>
-                          <Progress value={progressPercentage} className="h-2 mb-1" />
-                          <div className="flex justify-between text-sm">
-                            <span>{formatCurrency(goal.currentAmount)}</span>
-                            <span>{formatCurrency(goal.targetAmount)}</span>
-                          </div>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-sm text-gray-500">Deadline</span>
-                          <span className="text-sm">{formatDate(goal.deadline)}</span>
-                        </div>
-                        <div className="flex justify-end">
-                          <Button variant="outline" size="sm">
-                            Edit Goal
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-              
-              <Card className="flex items-center justify-center bg-gray-50 border border-dashed border-gray-300 h-48">
-                <Button variant="ghost">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                  </svg>
-                  Add New Goal
-                </Button>
-              </Card>
+        <TabsContent value="goals" className="space-y-6">
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-xl font-semibold mb-2">Investment Goals</h2>
+              <p className="text-sm text-gray-600">
+                Track targets, monitor progress, and keep your portfolio strategy on course.
+              </p>
             </div>
+            <GoalForm onSubmit={handleCreateGoal} isSubmitting={isCreating} />
+            <GoalList
+              goals={goals}
+              onEdit={handleUpdateGoal}
+              onDelete={handleDeleteGoal}
+              updatingGoalId={updatingGoalId}
+              deletingGoalId={deletingGoalId}
+            />
           </div>
         </TabsContent>
         

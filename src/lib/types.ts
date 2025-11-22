@@ -94,6 +94,17 @@ export interface Investment {
   }[];
 }
 
+export interface Goal {
+  id: string;
+  title: string;
+  description?: string;
+  targetAmount: number;
+  currentAmount: number;
+  deadline: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface InvestorProfile {
   id: string;
   name: string;
@@ -123,13 +134,7 @@ export interface InvestorProfile {
     read: boolean;
     relatedInvestmentId?: string;
   }[];
-  goals: {
-    id: string;
-    title: string;
-    targetAmount: number;
-    currentAmount: number;
-    deadline: string;
-  }[];
+  goals: Goal[];
 }
 
 export interface FilterOptions {
