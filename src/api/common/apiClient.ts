@@ -34,6 +34,16 @@ class ApiClient {
         (config.headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
       }
     }
+    
+    // If the request data is FormData, let Axios set Content-Type automatically with boundary
+    if (config.data instanceof FormData) {
+      if (config.headers && typeof config.headers.delete === 'function') {
+        config.headers.delete('Content-Type');
+      } else if (config.headers && 'Content-Type' in config.headers) {
+        delete (config.headers as Record<string, string>)['Content-Type'];
+      }
+    }
+    
     return config;
   }
 

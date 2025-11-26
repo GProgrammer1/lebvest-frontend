@@ -282,12 +282,7 @@ const Register = () => {
 
       const axiosResponse = await apiClient.post<ResponsePayload>(
         "/auth/company/register",
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        }
+        formData
       );
       const response: ResponsePayload = axiosResponse.data;
       console.log("Response of company signup: ", response);
@@ -601,45 +596,45 @@ const Register = () => {
     <div className="space-y-4">
       <h3 className="text-lg font-medium">Upload Company Documents</h3>
       <p className="text-sm text-gray-500">
-        Please upload each required file for admin verification.
+        Please upload files for admin verification (all documents are optional).
       </p>
 
       {[
         {
           id: "doc-incorporation",
-          label: "Certificate of Incorporation",
+          label: "Certificate of Incorporation (optional)",
           accept: ".pdf,.jpg,.png",
-          required: true,
+          required: false,
         },
         {
           id: "doc-bylaws",
-          label: "Articles of Association (Bylaws)",
+          label: "Articles of Association (Bylaws) (optional)",
           accept: ".pdf,.jpg,.png",
-          required: true,
+          required: false,
         },
         {
           id: "doc-tax",
-          label: "Tax Identification Certificate",
+          label: "Tax Identification Certificate (optional)",
           accept: ".pdf,.jpg,.png",
-          required: true,
+          required: false,
         },
         {
           id: "doc-address",
-          label: "Proof of Address",
+          label: "Proof of Address (optional)",
           accept: ".pdf,.jpg,.png",
-          required: true,
+          required: false,
         },
         {
           id: "doc-rep-id",
-          label: "Representative Photo ID",
+          label: "Representative Photo ID (optional)",
           accept: ".pdf,.jpg,.png",
-          required: true,
+          required: false,
         },
         {
           id: "doc-financials",
-          label: "Recent Financial Statement",
+          label: "Recent Financial Statement (optional)",
           accept: ".pdf,.xls,.xlsx,.csv",
-          required: true,
+          required: false,
         },
         {
           id: "doc-pitch",
@@ -668,7 +663,7 @@ const Register = () => {
             accept={accept}
             required={required}
             className="sr-only"
-            key={companyFiles[id].name}
+            key={companyFiles[id]?.name || id}
             onChange={(e) => {
               const file = e.target.files?.[0] || null;
               setCompanyFiles((prev) => ({ ...prev, [id]: file }));
