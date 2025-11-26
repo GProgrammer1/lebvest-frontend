@@ -93,10 +93,11 @@ const Register = () => {
   });
 
   const isPasswordStrong = Object.values(passwordStrength).every(Boolean);
- const getStrengthLabel = () => {
+  const getStrengthLabel = () => {
     const passed = Object.values(passwordStrength).filter(Boolean).length;
     if (passed <= 2) return { label: "Weak", color: "bg-red-500" };
-    if (passed === 3 || passed === 4) return { label: "Medium", color: "bg-yellow-500" };
+    if (passed === 3 || passed === 4)
+      return { label: "Medium", color: "bg-yellow-500" };
     return { label: "Strong", color: "bg-green-500" };
   };
   useEffect(() => {
@@ -109,22 +110,67 @@ const Register = () => {
     });
   }, [password]);
 
- const renderPasswordRequirements = () => {
+  const renderPasswordRequirements = () => {
     const strength = getStrengthLabel();
     return (
       <div className="mt-3">
         <div className="w-full h-2 rounded-full overflow-hidden bg-gray-200 mb-2">
-          <div className={`h-full ${strength.color}`} style={{ width: `${(Object.values(passwordStrength).filter(Boolean).length / 5) * 100}%` }}></div>
+          <div
+            className={`h-full ${strength.color}`}
+            style={{
+              width: `${
+                (Object.values(passwordStrength).filter(Boolean).length / 5) *
+                100
+              }%`,
+            }}
+          ></div>
         </div>
-        <p className={`text-sm font-medium ${strength.color.replace('bg-', 'text-')}`}>{strength.label} password</p>
+        <p
+          className={`text-sm font-medium ${strength.color.replace(
+            "bg-",
+            "text-"
+          )}`}
+        >
+          {strength.label} password
+        </p>
 
         <div className="mt-4 border rounded-xl p-4 bg-white shadow-md space-y-2">
           <ul className="list-disc pl-5">
-            <li className={passwordStrength.length ? "text-green-600" : "text-red-600"}>At least 8 characters</li>
-            <li className={passwordStrength.uppercase ? "text-green-600" : "text-red-600"}>Contains an uppercase letter</li>
-            <li className={passwordStrength.lowercase ? "text-green-600" : "text-red-600"}>Contains a lowercase letter</li>
-            <li className={passwordStrength.number ? "text-green-600" : "text-red-600"}>Contains a number</li>
-            <li className={passwordStrength.specialChar ? "text-green-600" : "text-red-600"}>Contains a special character</li>
+            <li
+              className={
+                passwordStrength.length ? "text-green-600" : "text-red-600"
+              }
+            >
+              At least 8 characters
+            </li>
+            <li
+              className={
+                passwordStrength.uppercase ? "text-green-600" : "text-red-600"
+              }
+            >
+              Contains an uppercase letter
+            </li>
+            <li
+              className={
+                passwordStrength.lowercase ? "text-green-600" : "text-red-600"
+              }
+            >
+              Contains a lowercase letter
+            </li>
+            <li
+              className={
+                passwordStrength.number ? "text-green-600" : "text-red-600"
+              }
+            >
+              Contains a number
+            </li>
+            <li
+              className={
+                passwordStrength.specialChar ? "text-green-600" : "text-red-600"
+              }
+            >
+              Contains a special character
+            </li>
           </ul>
         </div>
       </div>
@@ -180,20 +226,33 @@ const Register = () => {
           navigate("/dashboard");
           break;
         case "company":
+          console.log(
+            "About to call handleCompanySignup - Password state:",
+            password ? `[${password.length} chars]` : "EMPTY"
+          );
+          console.log(
+            "About to call handleCompanySignup - Email state:",
+            email
+          );
+          console.log(
+            "About to call handleCompanySignup - FullName state:",
+            fullName
+          );
           let companyResponse = await handleCompanySignup();
           console.log("Company res: ", companyResponse);
 
-          if (companyResponse.status === 201) {
-            // const { token } = response.data;
-            // localStorage.setItem("authToken", token);
-            // localStorage.setItem("role", role);
+          if (companyResponse && companyResponse.status === 201) {
+            const { token, role: userRole } = companyResponse.data;
+            localStorage.setItem("jwt", token);
+            localStorage.setItem("authToken", token);
+            localStorage.setItem("role", userRole);
             toast({
               title: "Success!",
               description:
-                "Your request has been sent to the admins for verification. You'll receive an email in the incoming days to validate your request",
+                "Your company account has been created successfully.",
               variant: "success",
             });
-            // navigate("/company-dashboard");
+            navigate("/company-dashboard");
           }
           break;
 
@@ -255,47 +314,93 @@ const Register = () => {
 
   const handleCompanySignup = async () => {
     try {
-      const formData = new FormData();
-
-      formData.append("companyName", companyData.companyName);
-      formData.append("description", companyData.description);
-      formData.append("sector", companyData.sector.toUpperCase());
-      // formData.append("teamSize", companyData.teamSize);
-      formData.append("foundedYear", String(companyData.foundedYear));
-      formData.append("location", companyData.location);
-      formData.append("email", email);
-      formData.append("name", fullName);
-      formData.append("password", password);
-
+      // Debug: Log all state values
+      console.log("=== handleCompanySignup DEBUG ===");
       console.log(
-        "Company data entries for formdata: ",
-        formData.get("sector")
+        "password state:",
+        password ? `[${password.length} chars]` : "NULL/EMPTY"
       );
+      console.log("email state:", email);
+      console.log("fullName state:", fullName);
+      console.log("companyData:", companyData);
+      console.log("currentStep:", currentStep);
+      console.log("================================");
 
-      // Append files
-      Object.entries(companyFiles).forEach(([field, file]) => {
-        if (file) {
-          formData.append("documents", file); // backend should receive it as a Multipart[] or List<Multipart>
-        }
+      // Validate required fields
+      if (!password || password.trim() === "") {
+        console.error("PASSWORD VALIDATION FAILED - password is:", password);
+        toast({
+          title: "Validation Error",
+          description:
+            "Password is required. Please go back to step 1 and enter your password.",
+          variant: "error",
+        });
+        throw new Error("Password is required");
+      }
+
+      if (!email || email.trim() === "") {
+        toast({
+          title: "Validation Error",
+          description: "Email is required",
+          variant: "error",
+        });
+        throw new Error("Email is required");
+      }
+
+      // Since file uploads are disabled, send as JSON instead of FormData
+      const requestData = {
+        companyName: companyData.companyName,
+        description: companyData.description,
+        sector: companyData.sector.toUpperCase(),
+        foundedYear: companyData.foundedYear,
+        location: companyData.location,
+        email: email,
+        name: fullName,
+        password: password,
+        // documents are optional and disabled for now
+      };
+
+      console.log("Company registration request data: ", {
+        ...requestData,
+        password: password ? "[PROTECTED]" : "[MISSING]",
       });
-      console.log("Company files are: ", companyFiles);
+      console.log("Password present:", !!password, "Length:", password?.length);
 
       const axiosResponse = await apiClient.post<ResponsePayload>(
         "/auth/company/register",
-        formData
+        requestData
       );
       const response: ResponsePayload = axiosResponse.data;
       console.log("Response of company signup: ", response);
       return response;
     } catch (err: any) {
-      console.error("Error signing up company: ", err.status);
-      if (err.status === 409) {
+      console.error("Error signing up company: ", err);
+      console.error("Error status: ", err.response?.status);
+      console.error("Error data: ", err.response?.data);
+
+      if (err.response?.status === 409) {
         toast({
           title: "Company already registered",
           description: err.response?.data?.message,
           variant: "error",
         });
+      } else if (err.response?.status === 403) {
+        toast({
+          title: "Access Denied",
+          description:
+            "You don't have permission to register. Please check your credentials or contact support.",
+          variant: "error",
+        });
+      } else {
+        toast({
+          title: "Registration Failed",
+          description:
+            err.response?.data?.message ||
+            "An error occurred during registration. Please try again.",
+          variant: "error",
+        });
       }
+      throw err; // Re-throw to be caught by the outer handler
     }
   };
 
@@ -668,7 +773,6 @@ const Register = () => {
               const file = e.target.files?.[0] || null;
               setCompanyFiles((prev) => ({ ...prev, [id]: file }));
             }}
-            
           />
           <button
             type="button"

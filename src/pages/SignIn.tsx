@@ -34,36 +34,46 @@ const SignIn = () => {
     try {
       console.log("Selected role: ", selectedRole);
       
-      // Mock authentication - would be replaced with real authentication
       const response: any = await apiClient.post("/auth/login", {
         email,
         password,
         role: selectedRole,
       });
+      
       if (response?.status === 200) {
         const token = response.data?.data?.token;
+        const role = response.data?.data?.role; // Get role from backend response
+        
+        // Save token and role
+        localStorage.setItem("jwt", token);
         localStorage.setItem("authToken", token);
+        localStorage.setItem("role", role);
+        
         toast({
           title: "Success!",
-          description: `You have been signed in as ${selectedRole.toLowerCase()}.`,
+          description: `You have been signed in as ${role || selectedRole.toLowerCase()}.`,
           variant: "success"
         });
+
+        // Redirect based on role from backend response (or fallback to selectedRole)
+        const userRole = (role || selectedRole).toLowerCase();
+        const redirectPath =
+          userRole === "investor"
+            ? "/dashboard"
+            : userRole === "company"
+            ? "/company-dashboard"
+            : "/admin-dashboard";
+        
+        console.log("SignIn - Redirecting to:", redirectPath, "based on role:", userRole);
+
+        navigate(redirectPath);
       } else {
         toast({
           title: "Error!",
-          description: "You have entered wrong credentials. Please try again."
-        })
+          description: "You have entered wrong credentials. Please try again.",
+          variant: "error"
+        });
       }
-
-      // Redirect based on role
-      const redirectPath =
-        selectedRole === "investor"
-          ? "/dashboard"
-          : selectedRole === "company"
-          ? "/company-dashboard"
-          : "/admin-dashboard";
-
-      navigate(redirectPath);
     } catch (error) {
       toast({
         title: "Error",
