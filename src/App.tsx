@@ -23,6 +23,7 @@ import FAQ from "./pages/FAQ";
 import HowItWorks from "./pages/HowItWorks";
 import NotFound from "./pages/NotFound";
 import ResetPassword from "./pages/ResetPassword";
+import InvestorSettings from "./pages/InvestorSettings";
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -36,6 +37,7 @@ const App = () => (
           <Route path="/investments" element={<Investments />} />
           <Route path="/investments/:id" element={<InvestmentDetail />} />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/investor-settings" element={<InvestorSettings />} />
           <Route path="/company-dashboard" element={<CompanyDashboard />} />
           <Route path="/admin-dashboard" element={<AdminDashboard />} />
           <Route path="/investor-profile/:id" element={<InvestorProfile />} />
@@ -50,7 +52,7 @@ const App = () => (
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/faq" element={<FAQ />} />
           <Route path="/how-it-works" element={<HowItWorks />} />
-          <Route path="/reset-password/:token" element={<ResetPassword/>}/>
+          <Route path="/reset-password/:token" element={<ResetPassword />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
