@@ -30,15 +30,18 @@ export const fetchInvestorDashboard = async (): Promise<InvestorDashboard> => {
   return response.data.data.dashboard;
 };
 
-export const fetchInvestorInvestments =
-  async (): Promise<InvestorInvestmentSummary[]> => {
-    const response = await apiClient.get<ApiResponse<InvestmentsResponse>>(
-      "/investors/me/investments"
-    );
-    return response.data.data.investments;
-  };
+export const fetchInvestorInvestments = async (): Promise<
+  InvestorInvestmentSummary[]
+> => {
+  const response = await apiClient.get<ApiResponse<InvestmentsResponse>>(
+    "/investors/me/investments"
+  );
+  return response.data.data.investments;
+};
 
-export const fetchInvestorWatchlist = async (): Promise<InvestmentSummary[]> => {
+export const fetchInvestorWatchlist = async (): Promise<
+  InvestmentSummary[]
+> => {
   const response = await apiClient.get<ApiResponse<WatchlistResponse>>(
     "/investors/me/watchlist"
   );
@@ -52,3 +55,111 @@ export const fetchInvestorGoals = async (): Promise<InvestorGoalSummary[]> => {
   return response.data.data.goals;
 };
 
+interface ProfileResponse {
+  profile: InvestorProfileDto;
+}
+
+interface PreferencesResponse {
+  preferences: InvestorPreferenceDto;
+}
+
+interface NotificationsResponse {
+  notifications: InvestorNotificationDto[];
+}
+
+interface NotificationResponse {
+  notification: InvestorNotificationDto;
+}
+
+export interface InvestorProfileDto {
+  id: number;
+  name: string;
+  email: string;
+  bio?: string | null;
+  imageUrl?: string | null;
+  portfolioValue: number;
+  totalInvested: number;
+  totalReturns: number;
+}
+
+export interface InvestorPreferenceDto {
+  categories: string[];
+  riskLevels: string[];
+  locations: string[];
+}
+
+export interface InvestorNotificationDto {
+  id: number;
+  type: string | null;
+  title: string;
+  message: string;
+  notifiedAt: string;
+  read: boolean;
+  relatedInvestmentId?: number | null;
+}
+
+export interface UpdateInvestorProfileRequest {
+  name?: string;
+  email?: string;
+  bio?: string;
+  imageUrl?: string;
+}
+
+export interface UpdateInvestorPreferenceRequest {
+  categories: string[];
+  riskLevels: string[];
+  locations: string[];
+}
+
+export const fetchInvestorProfile = async (): Promise<InvestorProfileDto> => {
+  const response = await apiClient.get<ApiResponse<ProfileResponse>>(
+    "/investors/me/profile"
+  );
+  return response.data.data.profile;
+};
+
+export const updateInvestorProfile = async (
+  request: UpdateInvestorProfileRequest
+): Promise<InvestorProfileDto> => {
+  const response = await apiClient.put<ApiResponse<ProfileResponse>>(
+    "/investors/me/profile",
+    request
+  );
+  return response.data.data.profile;
+};
+
+export const fetchInvestorPreferences =
+  async (): Promise<InvestorPreferenceDto> => {
+    const response = await apiClient.get<ApiResponse<PreferencesResponse>>(
+      "/investors/me/preferences"
+    );
+    return response.data.data.preferences;
+  };
+
+export const updateInvestorPreferences = async (
+  request: UpdateInvestorPreferenceRequest
+): Promise<InvestorPreferenceDto> => {
+  const response = await apiClient.put<ApiResponse<PreferencesResponse>>(
+    "/investors/me/preferences",
+    request
+  );
+  return response.data.data.preferences;
+};
+
+export const fetchInvestorNotifications = async (): Promise<
+  InvestorNotificationDto[]
+> => {
+  const response = await apiClient.get<ApiResponse<NotificationsResponse>>(
+    "/investors/me/notifications"
+  );
+  return response.data.data.notifications;
+};
+
+export const markNotificationAsRead = async (
+  notificationId: number
+): Promise<InvestorNotificationDto> => {
+  const response = await apiClient.put<ApiResponse<NotificationResponse>>(
+    `/investors/me/notifications/${notificationId}/read`
+  );
+  return response.data.data.notification;
+};
