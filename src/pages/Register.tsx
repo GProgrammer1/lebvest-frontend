@@ -93,10 +93,11 @@ const Register = () => {
   });
 
   const isPasswordStrong = Object.values(passwordStrength).every(Boolean);
- const getStrengthLabel = () => {
+  const getStrengthLabel = () => {
     const passed = Object.values(passwordStrength).filter(Boolean).length;
     if (passed <= 2) return { label: "Weak", color: "bg-red-500" };
-    if (passed === 3 || passed === 4) return { label: "Medium", color: "bg-yellow-500" };
+    if (passed === 3 || passed === 4)
+      return { label: "Medium", color: "bg-yellow-500" };
     return { label: "Strong", color: "bg-green-500" };
   };
   useEffect(() => {
@@ -109,22 +110,67 @@ const Register = () => {
     });
   }, [password]);
 
- const renderPasswordRequirements = () => {
+  const renderPasswordRequirements = () => {
     const strength = getStrengthLabel();
     return (
       <div className="mt-3">
         <div className="w-full h-2 rounded-full overflow-hidden bg-gray-200 mb-2">
-          <div className={`h-full ${strength.color}`} style={{ width: `${(Object.values(passwordStrength).filter(Boolean).length / 5) * 100}%` }}></div>
+          <div
+            className={`h-full ${strength.color}`}
+            style={{
+              width: `${
+                (Object.values(passwordStrength).filter(Boolean).length / 5) *
+                100
+              }%`,
+            }}
+          ></div>
         </div>
-        <p className={`text-sm font-medium ${strength.color.replace('bg-', 'text-')}`}>{strength.label} password</p>
+        <p
+          className={`text-sm font-medium ${strength.color.replace(
+            "bg-",
+            "text-"
+          )}`}
+        >
+          {strength.label} password
+        </p>
 
         <div className="mt-4 border rounded-xl p-4 bg-white shadow-md space-y-2">
           <ul className="list-disc pl-5">
-            <li className={passwordStrength.length ? "text-green-600" : "text-red-600"}>At least 8 characters</li>
-            <li className={passwordStrength.uppercase ? "text-green-600" : "text-red-600"}>Contains an uppercase letter</li>
-            <li className={passwordStrength.lowercase ? "text-green-600" : "text-red-600"}>Contains a lowercase letter</li>
-            <li className={passwordStrength.number ? "text-green-600" : "text-red-600"}>Contains a number</li>
-            <li className={passwordStrength.specialChar ? "text-green-600" : "text-red-600"}>Contains a special character</li>
+            <li
+              className={
+                passwordStrength.length ? "text-green-600" : "text-red-600"
+              }
+            >
+              At least 8 characters
+            </li>
+            <li
+              className={
+                passwordStrength.uppercase ? "text-green-600" : "text-red-600"
+              }
+            >
+              Contains an uppercase letter
+            </li>
+            <li
+              className={
+                passwordStrength.lowercase ? "text-green-600" : "text-red-600"
+              }
+            >
+              Contains a lowercase letter
+            </li>
+            <li
+              className={
+                passwordStrength.number ? "text-green-600" : "text-red-600"
+              }
+            >
+              Contains a number
+            </li>
+            <li
+              className={
+                passwordStrength.specialChar ? "text-green-600" : "text-red-600"
+              }
+            >
+              Contains a special character
+            </li>
           </ul>
         </div>
       </div>
@@ -183,17 +229,17 @@ const Register = () => {
           let companyResponse = await handleCompanySignup();
           console.log("Company res: ", companyResponse);
 
-          if (companyResponse.status === 201) {
-            // const { token } = response.data;
-            // localStorage.setItem("authToken", token);
-            // localStorage.setItem("role", role);
+          if (companyResponse && companyResponse.status === 201) {
+            const { token } = companyResponse.data;
+            localStorage.setItem("authToken", token);
+            localStorage.setItem("role", "company");
             toast({
               title: "Success!",
               description:
-                "Your request has been sent to the admins for verification. You'll receive an email in the incoming days to validate your request",
+                "Company registered successfully! Redirecting to dashboard...",
               variant: "success",
             });
-            // navigate("/company-dashboard");
+            navigate("/company-dashboard");
           }
           break;
 
@@ -255,39 +301,22 @@ const Register = () => {
 
   const handleCompanySignup = async () => {
     try {
-      const formData = new FormData();
+      const requestData = {
+        companyName: companyData.companyName,
+        description: companyData.description,
+        sector: companyData.sector.toUpperCase(),
+        foundedYear: companyData.foundedYear,
+        location: companyData.location,
+        email: email,
+        name: fullName,
+        password: password,
+      };
 
-      formData.append("companyName", companyData.companyName);
-      formData.append("description", companyData.description);
-      formData.append("sector", companyData.sector.toUpperCase());
-      // formData.append("teamSize", companyData.teamSize);
-      formData.append("foundedYear", String(companyData.foundedYear));
-      formData.append("location", companyData.location);
-      formData.append("email", email);
-      formData.append("name", fullName);
-      formData.append("password", password);
-
-      console.log(
-        "Company data entries for formdata: ",
-        formData.get("sector")
-      );
-
-      // Append files
-      Object.entries(companyFiles).forEach(([field, file]) => {
-        if (file) {
-          formData.append("documents", file); // backend should receive it as a Multipart[] or List<Multipart>
-        }
-      });
-      console.log("Company files are: ", companyFiles);
+      console.log("Company registration data: ", requestData);
 
       const axiosResponse = await apiClient.post<ResponsePayload>(
         "/auth/company/register",
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        }
+        requestData
       );
       const response: ResponsePayload = axiosResponse.data;
       console.log("Response of company signup: ", response);
@@ -609,51 +638,43 @@ const Register = () => {
           id: "doc-incorporation",
           label: "Certificate of Incorporation",
           accept: ".pdf,.jpg,.png",
-          required: true,
         },
         {
           id: "doc-bylaws",
           label: "Articles of Association (Bylaws)",
           accept: ".pdf,.jpg,.png",
-          required: true,
         },
         {
           id: "doc-tax",
           label: "Tax Identification Certificate",
           accept: ".pdf,.jpg,.png",
-          required: true,
         },
         {
           id: "doc-address",
           label: "Proof of Address",
           accept: ".pdf,.jpg,.png",
-          required: true,
         },
         {
           id: "doc-rep-id",
           label: "Representative Photo ID",
           accept: ".pdf,.jpg,.png",
-          required: true,
         },
         {
           id: "doc-financials",
           label: "Recent Financial Statement",
           accept: ".pdf,.xls,.xlsx,.csv",
-          required: true,
         },
         {
           id: "doc-pitch",
           label: "Pitch Deck (optional)",
           accept: ".pdf,.ppt,.pptx",
-          required: false,
         },
         {
           id: "logo",
           label: "Company Logo (optional)",
           accept: ".pdf,.jpg,.png,.svg",
-          required: false,
         },
-      ].map(({ id, label, accept, required }) => (
+      ].map(({ id, label, accept }) => (
         <div
           key={id}
           className="border-dashed border-2 border-gray-300 rounded-lg p-6 text-center"
@@ -666,14 +687,12 @@ const Register = () => {
             id={id}
             type="file"
             accept={accept}
-            required={required}
             className="sr-only"
-            key={companyFiles[id].name}
+            key={companyFiles[id]?.name || id}
             onChange={(e) => {
               const file = e.target.files?.[0] || null;
               setCompanyFiles((prev) => ({ ...prev, [id]: file }));
             }}
-            
           />
           <button
             type="button"

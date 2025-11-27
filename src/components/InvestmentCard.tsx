@@ -49,14 +49,23 @@ const getRiskColor = (risk: string): string => {
 
 const InvestmentCard: React.FC<InvestmentCardProps> = ({ investment }) => {
   const progressPercentage = (investment.raisedAmount / investment.targetAmount) * 100;
+  const placeholderImage = "https://via.placeholder.com/400x300/1e3a8a/ffffff?text=Investment+Opportunity";
+  const imageUrl = investment.imageUrl && investment.imageUrl.trim() !== "" 
+    ? investment.imageUrl 
+    : placeholderImage;
+  
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    e.currentTarget.src = placeholderImage;
+  };
   
   return (
     <Card className="overflow-hidden investment-card">
-      <div className="relative h-48">
+      <div className="relative h-48 bg-gray-200">
         <img 
-          src={investment.imageUrl} 
+          src={imageUrl} 
           alt={investment.title} 
           className="w-full h-full object-cover"
+          onError={handleImageError}
         />
         <div className="absolute top-2 left-2">
           <Badge className="text-xs bg-lebanese-navy hover:bg-lebanese-navy">

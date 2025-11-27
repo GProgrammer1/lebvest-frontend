@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { Helmet } from "react-helmet";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,110 +11,77 @@ import { User, ChevronLeft, BarChart3, ShieldCheck, MessageSquare } from "lucide
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Link } from "react-router-dom";
-
-// Mock investor data
-const mockInvestors = {
-  "inv1": {
-    id: "inv1",
-    name: "John Smith",
-    portfolioValue: 150000,
-    totalInvested: 125000,
-    totalReturns: 22500,
-    joinDate: "2023-05-15",
-    bio: "Experienced angel investor focused on early-stage startups with innovative solutions. Previous successful exits in fintech and healthtech sectors.",
-    preferences: {
-      categories: ["real_estate", "technology", "startups"],
-      riskLevel: "medium",
-      minInvestment: 10000,
-      preferredLocations: ["beirut", "mount_lebanon"]
-    },
-    activeInvestments: [
-      { 
-        id: "proj1", 
-        name: "Beirut Tech Hub", 
-        amount: 50000, 
-        date: "2023-07-10", 
-        roi: "+12%", 
-        category: "technology" 
-      },
-      { 
-        id: "proj2", 
-        name: "Cedar Apartments", 
-        amount: 75000, 
-        date: "2023-08-22", 
-        roi: "+5%", 
-        category: "real_estate" 
-      }
-    ],
-    investmentHistory: [
-      { year: 2021, amount: 80000, returns: 12000 },
-      { year: 2022, amount: 100000, returns: 15000 },
-      { year: 2023, amount: 125000, returns: 22500 }
-    ]
-  },
-  "inv2": {
-    id: "inv2",
-    name: "Sarah Johnson",
-    portfolioValue: 300000,
-    totalInvested: 250000,
-    totalReturns: 42500,
-    joinDate: "2023-06-22",
-    bio: "Impact investor with a focus on sustainable development and healthcare innovations. Looking to build a diversified portfolio with long-term growth potential.",
-    preferences: {
-      categories: ["healthcare", "technology", "education"],
-      riskLevel: "high",
-      minInvestment: 25000,
-      preferredLocations: ["beirut", "south", "north"]
-    },
-    activeInvestments: [
-      { 
-        id: "proj3", 
-        name: "MedTech Solutions", 
-        amount: 100000, 
-        date: "2023-06-15", 
-        roi: "+18%", 
-        category: "healthcare" 
-      },
-      { 
-        id: "proj4", 
-        name: "EdTech Learning Platform", 
-        amount: 75000, 
-        date: "2023-07-30", 
-        roi: "+10%", 
-        category: "education" 
-      },
-      { 
-        id: "proj5", 
-        name: "AI Analytics Suite", 
-        amount: 75000, 
-        date: "2023-09-05", 
-        roi: "+8%", 
-        category: "technology" 
-      }
-    ],
-    investmentHistory: [
-      { year: 2021, amount: 150000, returns: 22500 },
-      { year: 2022, amount: 200000, returns: 30000 },
-      { year: 2023, amount: 250000, returns: 42500 }
-    ]
-  }
-};
+import apiClient from "@/api/common/apiClient";
+import { ResponsePayload } from "@/lib/types";
 
 const InvestorProfile = () => {
   const { id } = useParams<{ id: string }>();
   const [contactVisible, setContactVisible] = useState(false);
+  const [investor, setInvestor] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
-  // Get investor data based on ID
-  const investor = id && mockInvestors[id as keyof typeof mockInvestors];
+  useEffect(() => {
+    const fetchInvestorProfile = async () => {
+      if (!id) {
+        setError("Invalid investor ID");
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const response = await apiClient.get<ResponsePayload>(`/investors/${id}`);
+        if (response.data.status === 200) {
+          setInvestor(response.data.data.profile);
+        } else {
+          setError("Investor profile not found");
+        }
+      } catch (err: any) {
+        console.error("Error fetching investor profile:", err);
+        setError(err.response?.data?.message || "Failed to load investor profile");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchInvestorProfile();
+  }, [id]);
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(amount);
+  };
   
-  if (!investor) {
+  const calculateTotalROI = () => {
+    if (!investor || !investor.totalInvested || investor.totalInvested === 0) return '0%';
+    const roi = (Number(investor.totalReturns || 0) / Number(investor.totalInvested)) * 100;
+    return roi.toFixed(1) + '%';
+  };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col min-h-screen">
+        <Navbar />
+        <main className="flex-grow flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50">
+          <div className="text-center">
+            <div>Loading investor profile...</div>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (error || !investor) {
     return (
       <div className="flex flex-col min-h-screen">
         <Navbar />
         <main className="flex-grow flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50">
           <div className="text-center">
             <h2 className="text-2xl font-bold text-gray-900">Investor not found</h2>
-            <p className="mt-2 text-gray-600">The requested investor profile does not exist.</p>
+            <p className="mt-2 text-gray-600">{error || "The requested investor profile does not exist."}</p>
             <Link to="/company-dashboard">
               <Button className="mt-4 bg-lebanese-navy hover:bg-opacity-90">
                 Return to Dashboard
@@ -127,22 +94,10 @@ const InvestorProfile = () => {
     );
   }
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
-  };
-  
-  const calculateTotalROI = () => {
-    const roi = (investor.totalReturns / investor.totalInvested) * 100;
-    return roi.toFixed(1) + '%';
-  };
-
   return (
     <div className="flex flex-col min-h-screen">
       <Helmet>
-        <title>{investor.name} | Investor Profile | LebVest</title>
+        <title>{investor.name || 'Investor'} | Investor Profile | LebVest</title>
       </Helmet>
       <Navbar />
       <main className="flex-grow p-6 bg-gray-50">
@@ -167,13 +122,15 @@ const InvestorProfile = () => {
                     </div>
                     <div>
                       <h2 className="text-xl font-bold">{investor.name}</h2>
-                      <p className="text-gray-500 text-sm">Member since {new Date(investor.joinDate).toLocaleDateString()}</p>
+                      <p className="text-gray-500 text-sm">Investor Profile</p>
                     </div>
                   </div>
                   
-                  <div className="mt-4 space-y-1">
-                    <p className="text-gray-700">{investor.bio}</p>
-                  </div>
+                  {investor.bio && (
+                    <div className="mt-4 space-y-1">
+                      <p className="text-gray-700">{investor.bio}</p>
+                    </div>
+                  )}
                   
                   {!contactVisible ? (
                     <Button 
@@ -198,50 +155,22 @@ const InvestorProfile = () => {
               
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-lg">Investment Preferences</CardTitle>
+                  <CardTitle className="text-lg">About</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-500">Interested Categories</h3>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {investor.preferences.categories.map((category) => (
-                          <Badge key={category} variant="outline" className="capitalize">
-                            {category.replace("_", " ")}
-                          </Badge>
-                        ))}
+                    {investor.bio ? (
+                      <div>
+                        <p className="text-gray-700">{investor.bio}</p>
                       </div>
-                    </div>
-                    
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-500">Risk Tolerance</h3>
-                      <div className="mt-1">
-                        <Badge className={`
-                          ${investor.preferences.riskLevel === "low" ? "bg-blue-100 text-blue-700" : ""}
-                          ${investor.preferences.riskLevel === "medium" ? "bg-yellow-100 text-yellow-700" : ""}
-                          ${investor.preferences.riskLevel === "high" ? "bg-red-100 text-red-700" : ""}
-                        `}>
-                          {investor.preferences.riskLevel.charAt(0).toUpperCase() + investor.preferences.riskLevel.slice(1)}
-                        </Badge>
+                    ) : (
+                      <div>
+                        <p className="text-gray-500 italic">No bio available</p>
                       </div>
-                    </div>
-                    
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-500">Minimum Investment</h3>
-                      <div className="mt-1 font-medium">
-                        {formatCurrency(investor.preferences.minInvestment)}
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-500">Preferred Locations</h3>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {investor.preferences.preferredLocations.map((location) => (
-                          <Badge key={location} variant="outline" className="capitalize">
-                            {location.replace("_", " ")}
-                          </Badge>
-                        ))}
-                      </div>
+                    )}
+                    <div className="pt-4 border-t">
+                      <h3 className="text-sm font-medium text-gray-500 mb-2">Contact</h3>
+                      <p className="text-sm text-gray-600">{investor.email}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -258,18 +187,18 @@ const InvestorProfile = () => {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="bg-gray-50 p-4 rounded-md border">
                       <div className="text-sm font-medium text-gray-500">Portfolio Value</div>
-                      <div className="text-2xl font-bold mt-1">{formatCurrency(investor.portfolioValue)}</div>
+                      <div className="text-2xl font-bold mt-1">{formatCurrency(Number(investor.portfolioValue || 0))}</div>
                     </div>
                     
                     <div className="bg-gray-50 p-4 rounded-md border">
                       <div className="text-sm font-medium text-gray-500">Total Invested</div>
-                      <div className="text-2xl font-bold mt-1">{formatCurrency(investor.totalInvested)}</div>
+                      <div className="text-2xl font-bold mt-1">{formatCurrency(Number(investor.totalInvested || 0))}</div>
                     </div>
                     
                     <div className="bg-gray-50 p-4 rounded-md border">
                       <div className="text-sm font-medium text-gray-500">Total Returns</div>
                       <div className="text-2xl font-bold mt-1 text-green-600">
-                        +{formatCurrency(investor.totalReturns)} ({calculateTotalROI()})
+                        +{formatCurrency(Number(investor.totalReturns || 0))} ({calculateTotalROI()})
                       </div>
                     </div>
                   </div>
@@ -294,15 +223,12 @@ const InvestorProfile = () => {
                               </TableRow>
                             </TableHeader>
                             <TableBody>
-                              {investor.activeInvestments.map((investment) => (
-                                <TableRow key={investment.id}>
-                                  <TableCell className="font-medium">{investment.name}</TableCell>
-                                  <TableCell className="capitalize">{investment.category.replace("_", " ")}</TableCell>
-                                  <TableCell>{formatCurrency(investment.amount)}</TableCell>
-                                  <TableCell>{new Date(investment.date).toLocaleDateString()}</TableCell>
-                                  <TableCell className="text-green-600">{investment.roi}</TableCell>
-                                </TableRow>
-                              ))}
+                              <TableRow>
+                                <TableCell colSpan={5} className="text-center py-8 text-gray-500">
+                                  Investment details are private and not available in public profiles.
+                                  <p className="text-sm mt-2">Contact the investor through our messaging system to discuss investment opportunities.</p>
+                                </TableCell>
+                              </TableRow>
                             </TableBody>
                           </Table>
                         </div>
@@ -320,16 +246,11 @@ const InvestorProfile = () => {
                               </TableRow>
                             </TableHeader>
                             <TableBody>
-                              {investor.investmentHistory.map((history) => (
-                                <TableRow key={history.year}>
-                                  <TableCell className="font-medium">{history.year}</TableCell>
-                                  <TableCell>{formatCurrency(history.amount)}</TableCell>
-                                  <TableCell>{formatCurrency(history.returns)}</TableCell>
-                                  <TableCell className="text-green-600">
-                                    {((history.returns / history.amount) * 100).toFixed(1)}%
-                                  </TableCell>
-                                </TableRow>
-                              ))}
+                              <TableRow>
+                                <TableCell colSpan={4} className="text-center py-8 text-gray-500">
+                                  Investment history is private and not available in public profiles.
+                                </TableCell>
+                              </TableRow>
                             </TableBody>
                           </Table>
                         </div>

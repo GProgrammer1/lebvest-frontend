@@ -1,16 +1,30 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { InvestorProfile } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { mockInvestments } from "@/lib/mockData";
 import { Link } from "react-router-dom";
+import apiClient from "@/api/common/apiClient";
+import { ResponsePayload } from "@/lib/types";
+import { useToast } from "@/components/ui/use-toast";
 
 interface DashboardPageProps {
   investor: InvestorProfile;
+  onGoalCreated?: () => void;
 }
 
 const formatCurrency = (amount: number): string => {
@@ -29,7 +43,17 @@ const formatDate = (dateString: string): string => {
   });
 };
 
-const DashboardPage: React.FC<DashboardPageProps> = ({ investor }) => {
+const DashboardPage: React.FC<DashboardPageProps> = ({ investor, onGoalCreated }) => {
+  const [isGoalDialogOpen, setIsGoalDialogOpen] = useState(false);
+  const [isEditGoalDialogOpen, setIsEditGoalDialogOpen] = useState(false);
+  const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
+  const [goalTitle, setGoalTitle] = useState("");
+  const [goalTargetAmount, setGoalTargetAmount] = useState("");
+  const [goalDeadline, setGoalDeadline] = useState("");
+  const [isCreatingGoal, setIsCreatingGoal] = useState(false);
+  const [isUpdatingGoal, setIsUpdatingGoal] = useState(false);
+  const { toast } = useToast();
+
   // Find full investments from mock data
   const investorInvestments = investor.investments.map(investment => {
     const fullInvestment = mockInvestments.find(inv => inv.id === investment.investmentId);
@@ -43,6 +67,125 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ investor }) => {
   const watchlistItems = investor.watchlist.map(id => {
     return mockInvestments.find(inv => inv.id === id);
   }).filter(item => item !== undefined);
+
+  const handleCreateGoal = async () => {
+    if (!goalTitle.trim() || !goalTargetAmount || !goalDeadline) {
+      toast({
+        title: "Error",
+        description: "Please fill in all fields",
+        variant: "error",
+      });
+      return;
+    }
+
+    const targetAmount = parseFloat(goalTargetAmount);
+    if (isNaN(targetAmount) || targetAmount <= 0) {
+      toast({
+        title: "Error",
+        description: "Target amount must be a positive number",
+        variant: "error",
+      });
+      return;
+    }
+
+    setIsCreatingGoal(true);
+    try {
+      const response = await apiClient.post<ResponsePayload>("/investors/me/goals", {
+        title: goalTitle,
+        targetAmount: targetAmount,
+        deadline: goalDeadline,
+      });
+
+      if (response.data.status === 201) {
+        toast({
+          title: "Success",
+          description: "Goal created successfully",
+          variant: "success",
+        });
+        setIsGoalDialogOpen(false);
+        setGoalTitle("");
+        setGoalTargetAmount("");
+        setGoalDeadline("");
+        if (onGoalCreated) {
+          onGoalCreated();
+        }
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to create goal",
+        variant: "error",
+      });
+    } finally {
+      setIsCreatingGoal(false);
+    }
+  };
+
+  const handleEditGoal = (goal: { id: string; title: string; targetAmount: number; deadline: string }) => {
+    setEditingGoalId(goal.id);
+    setGoalTitle(goal.title);
+    setGoalTargetAmount(goal.targetAmount.toString());
+    // Format date for input (YYYY-MM-DD)
+    const deadlineDate = goal.deadline ? new Date(goal.deadline).toISOString().split('T')[0] : "";
+    setGoalDeadline(deadlineDate);
+    setIsEditGoalDialogOpen(true);
+  };
+
+  const handleUpdateGoal = async () => {
+    if (!editingGoalId) return;
+
+    if (!goalTitle.trim() || !goalTargetAmount || !goalDeadline) {
+      toast({
+        title: "Error",
+        description: "Please fill in all fields",
+        variant: "error",
+      });
+      return;
+    }
+
+    const targetAmount = parseFloat(goalTargetAmount);
+    if (isNaN(targetAmount) || targetAmount <= 0) {
+      toast({
+        title: "Error",
+        description: "Target amount must be a positive number",
+        variant: "error",
+      });
+      return;
+    }
+
+    setIsUpdatingGoal(true);
+    try {
+      const response = await apiClient.put<ResponsePayload>(`/investors/me/goals/${editingGoalId}`, {
+        title: goalTitle,
+        targetAmount: targetAmount,
+        deadline: goalDeadline,
+      });
+
+      if (response.data.status === 200) {
+        toast({
+          title: "Success",
+          description: "Goal updated successfully",
+          variant: "success",
+        });
+        setIsEditGoalDialogOpen(false);
+        setEditingGoalId(null);
+        setGoalTitle("");
+        setGoalTargetAmount("");
+        setGoalDeadline("");
+        if (onGoalCreated) {
+          onGoalCreated();
+        }
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to update goal",
+        variant: "error",
+      });
+    } finally {
+      setIsUpdatingGoal(false);
+    }
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -121,12 +264,17 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ investor }) => {
                 <Card key={investment.investmentId} className="overflow-hidden">
                   <div className="flex flex-col md:flex-row">
                     {investment.details && (
-                      <div className="w-full md:w-1/4">
+                      <div className="w-full md:w-1/4 bg-gray-200">
                         <img
-                          src={investment.details.imageUrl}
+                          src={investment.details.imageUrl && investment.details.imageUrl.trim() !== ""
+                            ? investment.details.imageUrl
+                            : "https://via.placeholder.com/200x200/1e3a8a/ffffff?text=Investment"}
                           alt={investment.details.title}
                           className="w-full h-full object-cover"
                           style={{ maxHeight: '200px' }}
+                          onError={(e) => {
+                            e.currentTarget.src = "https://via.placeholder.com/200x200/1e3a8a/ffffff?text=Investment";
+                          }}
                         />
                       </div>
                     )}
@@ -194,11 +342,16 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ investor }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {watchlistItems.map((item) => item && (
                 <Card key={item.id} className="overflow-hidden">
-                  <div className="h-40">
+                  <div className="h-40 bg-gray-200">
                     <img
-                      src={item.imageUrl}
+                      src={item.imageUrl && item.imageUrl.trim() !== ""
+                        ? item.imageUrl
+                        : "https://via.placeholder.com/400x200/1e3a8a/ffffff?text=Investment+Opportunity"}
                       alt={item.title}
                       className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.src = "https://via.placeholder.com/400x200/1e3a8a/ffffff?text=Investment+Opportunity";
+                      }}
                     />
                   </div>
                   <CardContent className="p-4">
@@ -260,7 +413,11 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ investor }) => {
                           <span className="text-sm">{formatDate(goal.deadline)}</span>
                         </div>
                         <div className="flex justify-end">
-                          <Button variant="outline" size="sm">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleEditGoal(goal)}
+                          >
                             Edit Goal
                           </Button>
                         </div>
@@ -271,7 +428,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ investor }) => {
               })}
               
               <Card className="flex items-center justify-center bg-gray-50 border border-dashed border-gray-300 h-48">
-                <Button variant="ghost">
+                <Button variant="ghost" onClick={() => setIsGoalDialogOpen(true)}>
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                   </svg>
@@ -357,11 +514,16 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ investor }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {mockInvestments.slice(0, 3).map((investment) => (
             <Card key={investment.id} className="overflow-hidden">
-              <div className="h-40">
+              <div className="h-40 bg-gray-200">
                 <img
-                  src={investment.imageUrl}
+                  src={investment.imageUrl && investment.imageUrl.trim() !== ""
+                    ? investment.imageUrl
+                    : "https://via.placeholder.com/400x200/1e3a8a/ffffff?text=Investment+Opportunity"}
                   alt={investment.title}
                   className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.currentTarget.src = "https://via.placeholder.com/400x200/1e3a8a/ffffff?text=Investment+Opportunity";
+                  }}
                 />
               </div>
               <CardContent className="p-4">
@@ -385,6 +547,139 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ investor }) => {
           ))}
         </div>
       </section>
+
+      {/* Create Goal Dialog */}
+      <Dialog open={isGoalDialogOpen} onOpenChange={setIsGoalDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create New Investment Goal</DialogTitle>
+            <DialogDescription>
+              Set a target amount and deadline for your investment goal.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="goal-title">Goal Title</Label>
+              <Input
+                id="goal-title"
+                placeholder="e.g., Save for retirement"
+                value={goalTitle}
+                onChange={(e) => setGoalTitle(e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="goal-amount">Target Amount ($)</Label>
+              <Input
+                id="goal-amount"
+                type="number"
+                placeholder="10000"
+                value={goalTargetAmount}
+                onChange={(e) => setGoalTargetAmount(e.target.value)}
+                min="0.01"
+                step="0.01"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="goal-deadline">Deadline</Label>
+              <Input
+                id="goal-deadline"
+                type="date"
+                value={goalDeadline}
+                onChange={(e) => setGoalDeadline(e.target.value)}
+                min={new Date().toISOString().split('T')[0]}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsGoalDialogOpen(false);
+                setGoalTitle("");
+                setGoalTargetAmount("");
+                setGoalDeadline("");
+              }}
+              disabled={isCreatingGoal}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateGoal}
+              disabled={isCreatingGoal}
+              className="bg-lebanese-navy hover:bg-opacity-90"
+            >
+              {isCreatingGoal ? "Creating..." : "Create Goal"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Goal Dialog */}
+      <Dialog open={isEditGoalDialogOpen} onOpenChange={setIsEditGoalDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Investment Goal</DialogTitle>
+            <DialogDescription>
+              Update your investment goal details.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="edit-goal-title">Goal Title</Label>
+              <Input
+                id="edit-goal-title"
+                placeholder="e.g., Save for retirement"
+                value={goalTitle}
+                onChange={(e) => setGoalTitle(e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-goal-amount">Target Amount ($)</Label>
+              <Input
+                id="edit-goal-amount"
+                type="number"
+                placeholder="10000"
+                value={goalTargetAmount}
+                onChange={(e) => setGoalTargetAmount(e.target.value)}
+                min="0.01"
+                step="0.01"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-goal-deadline">Deadline</Label>
+              <Input
+                id="edit-goal-deadline"
+                type="date"
+                value={goalDeadline}
+                onChange={(e) => setGoalDeadline(e.target.value)}
+                min={new Date().toISOString().split('T')[0]}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsEditGoalDialogOpen(false);
+                setEditingGoalId(null);
+                setGoalTitle("");
+                setGoalTargetAmount("");
+                setGoalDeadline("");
+              }}
+              disabled={isUpdatingGoal}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpdateGoal}
+              disabled={isUpdatingGoal}
+              className="bg-lebanese-navy hover:bg-opacity-90"
+            >
+              {isUpdatingGoal ? "Updating..." : "Update Goal"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -1,23 +1,124 @@
 
-import { useState } from "react";
+import { useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ProjectForm from "@/components/ProjectForm";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { ArrowRight } from "lucide-react";
+import apiClient from "@/api/common/apiClient";
+import { ResponsePayload } from "@/lib/types";
 
 const ListProject = () => {
+  const navigate = useNavigate();
   const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const formDataRef = useRef<any>(null);
   
-  const handleNextStep = () => {
+  const handleNextStep = async () => {
     if (step < 3) {
-      setStep((prev) => (prev === 1 ? 2 : 3) as 1 | 2 | 3);
+      // Validate current step before moving to next
+      const formData = await formDataRef.current?.getFormData();
+      if (formData) {
+        setStep((prev) => (prev === 1 ? 2 : 3) as 1 | 2 | 3);
+      } else {
+        toast({
+          title: "Validation Error",
+          description: "Please fill in all required fields correctly",
+          variant: "error",
+        });
+      }
     } else {
+      // Submit on step 3
+      await handleSubmit();
+    }
+  };
+
+  const handleSubmit = async () => {
+    const formData = await formDataRef.current?.getFormData();
+    if (!formData) {
       toast({
-        title: "Project submitted for review",
-        description: "Our team will review your submission and contact you within 2 business days.",
+        title: "Error",
+        description: "Please fill in all required fields and agree to the terms",
+        variant: "error",
       });
+      return;
+    }
+
+    // Validate terms agreed
+    if (!formData.termsAgreed) {
+      toast({
+        title: "Error",
+        description: "You must agree to the terms and conditions",
+        variant: "error",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      // Calculate deadline (e.g., 90 days from now)
+      const deadline = new Date();
+      deadline.setDate(deadline.getDate() + 90);
+      const deadlineStr = deadline.toISOString().split('T')[0];
+
+      // Validate required fields
+      if (!formData.title || !formData.description || !formData.category || !formData.location) {
+        toast({
+          title: "Error",
+          description: "Please complete all basic information fields",
+          variant: "error",
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (!formData.investmentType || !formData.targetAmount || !formData.minInvestment) {
+        toast({
+          title: "Error",
+          description: "Please complete all business details fields",
+          variant: "error",
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
+      const requestData = {
+        title: formData.title,
+        description: formData.description,
+        category: formData.category.toUpperCase().replace(/\s+/g, '_'),
+        riskLevel: "MEDIUM", // Default risk level
+        expectedReturn: formData.expectedReturn || 10,
+        minInvestment: parseFloat(formData.minInvestment),
+        targetAmount: parseFloat(formData.targetAmount),
+        location: formData.location.toUpperCase().replace(/\s+/g, '_'),
+        investmentType: formData.investmentType.toUpperCase().replace(/\s+/g, '_'),
+        durationMonths: formData.duration || 36,
+        deadline: deadlineStr,
+        imageUrl: formData.imageUrl || null,
+        fundingStage: formData.fundingStage || null,
+        highlights: formData.highlights || [],
+      };
+
+      const response = await apiClient.post<ResponsePayload>("/companies/me/investments", requestData);
+
+      if (response.data.status === 201) {
+        toast({
+          title: "Success",
+          description: "Investment opportunity created successfully!",
+          variant: "success",
+        });
+        navigate("/company-dashboard");
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to create investment opportunity",
+        variant: "error",
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -63,7 +164,7 @@ const ListProject = () => {
           
           {/* Form content */}
           <div className="bg-white p-8 rounded-lg shadow-md">
-            <ProjectForm step={step} />
+            <ProjectForm step={step} ref={formDataRef} />
                  </div>
           
             <div className="mt-8 flex justify-end">
@@ -72,6 +173,7 @@ const ListProject = () => {
                   variant="outline" 
                   className="mr-4"
                   onClick={() => setStep((prev) => (prev === 3 ? 2 : 1) as 1 | 2 | 3)}
+                  disabled={isSubmitting}
                 >
                   Back
                 </Button>
@@ -79,9 +181,10 @@ const ListProject = () => {
               <Button 
                 onClick={handleNextStep}
                 className="bg-lebanese-navy hover:bg-opacity-90"
+                disabled={isSubmitting}
               >
-                {step === 3 ? 'Submit Project' : 'Next Step'}
-                <ArrowRight className="ml-2 h-4 w-4" />
+                {isSubmitting ? 'Submitting...' : step === 3 ? 'Submit Project' : 'Next Step'}
+                {!isSubmitting && <ArrowRight className="ml-2 h-4 w-4" />}
               </Button>
             </div>
           </div>

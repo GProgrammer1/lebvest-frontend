@@ -24,7 +24,7 @@ class ApiClient {
 
   // Add auth token if present
   private handleRequest(config: InternalAxiosRequestConfig): InternalAxiosRequestConfig {
-    const token = localStorage.getItem('jwt');
+    const token = localStorage.getItem('authToken');
     if (token) {
       if (config.headers && typeof config.headers.set === 'function') {
         // Axios v1: headers is AxiosHeaders instance
@@ -46,8 +46,8 @@ class ApiClient {
   private handleError(error: any): Promise<any> {
     // For example, logout on 401 Unauthorized
     if (error.response?.status === 401) {
-      localStorage.removeItem('jwt');
-      window.location.href = '/login';
+      localStorage.removeItem('authToken');
+      window.location.href = '/signin';
     }
     return Promise.reject(error);
   }
