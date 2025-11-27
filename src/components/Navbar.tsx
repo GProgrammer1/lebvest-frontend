@@ -1,11 +1,33 @@
 
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, FormEvent } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
-import { Search, User } from 'lucide-react';
+import { Search, User, LogOut } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [mobileSearchQuery, setMobileSearchQuery] = useState('');
+  const navigate = useNavigate();
+  const { isAuthenticated, role } = useAuth();
+
+  const handleLogout = () => {
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('role');
+    navigate('/signin');
+    window.location.reload(); // Force reload to update auth state
+  };
+
+  const handleSearch = (e: FormEvent<HTMLFormElement>, query: string) => {
+    e.preventDefault();
+    if (query.trim()) {
+      navigate(`/investments?search=${encodeURIComponent(query.trim())}`);
+      setSearchQuery('');
+      setMobileSearchQuery('');
+      setIsMenuOpen(false);
+    }
+  };
 
   return (
     <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
@@ -22,12 +44,30 @@ const Navbar = () => {
               <Link to="/investments" className="text-gray-700 hover:text-lebanese-green inline-flex items-center px-1 pt-1 text-sm font-medium">
                 Investments
               </Link>
-              <Link to="/dashboard" className="text-gray-700 hover:text-lebanese-green inline-flex items-center px-1 pt-1 text-sm font-medium">
-                Dashboard
-              </Link>
-              <Link to="/list-project" className="text-gray-700 hover:text-lebanese-green inline-flex items-center px-1 pt-1 text-sm font-medium">
-                List Project
-              </Link>
+              {isAuthenticated && (
+                <>
+                  {role === 'Investor' && (
+                    <Link to="/dashboard" className="text-gray-700 hover:text-lebanese-green inline-flex items-center px-1 pt-1 text-sm font-medium">
+                      Dashboard
+                    </Link>
+                  )}
+                  {role === 'Company' && (
+                    <>
+                      <Link to="/company-dashboard" className="text-gray-700 hover:text-lebanese-green inline-flex items-center px-1 pt-1 text-sm font-medium">
+                        Dashboard
+                      </Link>
+                      <Link to="/list-project" className="text-gray-700 hover:text-lebanese-green inline-flex items-center px-1 pt-1 text-sm font-medium">
+                        List Project
+                      </Link>
+                    </>
+                  )}
+                  {role === 'Admin' && (
+                    <Link to="/admin-dashboard" className="text-gray-700 hover:text-lebanese-green inline-flex items-center px-1 pt-1 text-sm font-medium">
+                      Dashboard
+                    </Link>
+                  )}
+                </>
+              )}
               <Link to="/about" className="text-gray-700 hover:text-lebanese-green inline-flex items-center px-1 pt-1 text-sm font-medium">
                 About
               </Link>
@@ -35,26 +75,47 @@ const Navbar = () => {
           </div>
 
           <div className="hidden md:flex items-center">
-            <div className="relative mx-4">
+            <form 
+              onSubmit={(e) => handleSearch(e, searchQuery)}
+              className="relative mx-4"
+            >
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <Search className="h-5 w-5 text-gray-400" />
               </div>
               <input
                 type="text"
                 placeholder="Search investments..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10 py-2 pr-4 block w-full sm:text-sm border-gray-300 rounded-md focus:ring-lebanese-green focus:border-lebanese-green border"
               />
-            </div>
-            <Link to="/signin">
-              <Button variant="outline" className="mr-2 border-lebanese-navy text-lebanese-navy hover:text-lebanese-navy hover:bg-gray-100">
-                Sign In
-              </Button>
-            </Link>
-            <Link to="/register">
-              <Button className="bg-lebanese-navy text-white hover:bg-opacity-90">
-                Register
-              </Button>
-            </Link>
+            </form>
+            {isAuthenticated ? (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-600">{role}</span>
+                <Button 
+                  variant="outline" 
+                  onClick={handleLogout}
+                  className="border-lebanese-navy text-lebanese-navy hover:text-lebanese-navy hover:bg-gray-100"
+                >
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Logout
+                </Button>
+              </div>
+            ) : (
+              <>
+                <Link to="/signin">
+                  <Button variant="outline" className="mr-2 border-lebanese-navy text-lebanese-navy hover:text-lebanese-navy hover:bg-gray-100">
+                    Sign In
+                  </Button>
+                </Link>
+                <Link to="/register">
+                  <Button className="bg-lebanese-navy text-white hover:bg-opacity-90">
+                    Register
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
 
           <div className="flex items-center md:hidden">
@@ -88,20 +149,46 @@ const Navbar = () => {
             >
               Investments
             </Link>
-            <Link
-              to="/dashboard"
-              className="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              Dashboard
-            </Link>
-            <Link
-              to="/list-project"
-              className="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              List Project
-            </Link>
+            {isAuthenticated && (
+              <>
+                {role === 'Investor' && (
+                  <Link
+                    to="/dashboard"
+                    className="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Dashboard
+                  </Link>
+                )}
+                {role === 'Company' && (
+                  <>
+                    <Link
+                      to="/company-dashboard"
+                      className="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      Dashboard
+                    </Link>
+                    <Link
+                      to="/list-project"
+                      className="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      List Project
+                    </Link>
+                  </>
+                )}
+                {role === 'Admin' && (
+                  <Link
+                    to="/admin-dashboard"
+                    className="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Dashboard
+                  </Link>
+                )}
+              </>
+            )}
             <Link
               to="/about"
               className="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800"
@@ -118,25 +205,47 @@ const Navbar = () => {
                 </div>
               </div>
               <div className="ml-3">
-                <Link to="/signin" onClick={() => setIsMenuOpen(false)}>
-                  <div className="text-base font-medium text-gray-800">Sign in</div>
-                </Link>
-                <Link to="/register" onClick={() => setIsMenuOpen(false)}>
-                  <div className="text-sm font-medium text-gray-500">Register</div>
-                </Link>
+                {isAuthenticated ? (
+                  <>
+                    <div className="text-base font-medium text-gray-800">{role}</div>
+                    <button
+                      onClick={() => {
+                        handleLogout();
+                        setIsMenuOpen(false);
+                      }}
+                      className="text-sm font-medium text-gray-500 hover:text-gray-800"
+                    >
+                      Logout
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <Link to="/signin" onClick={() => setIsMenuOpen(false)}>
+                      <div className="text-base font-medium text-gray-800">Sign in</div>
+                    </Link>
+                    <Link to="/register" onClick={() => setIsMenuOpen(false)}>
+                      <div className="text-sm font-medium text-gray-500">Register</div>
+                    </Link>
+                  </>
+                )}
               </div>
             </div>
             <div className="mt-3">
-              <div className="relative px-4 py-3">
+              <form 
+                onSubmit={(e) => handleSearch(e, mobileSearchQuery)}
+                className="relative px-4 py-3"
+              >
                 <div className="absolute inset-y-0 left-0 pl-7 flex items-center pointer-events-none">
                   <Search className="h-5 w-5 text-gray-400" />
                 </div>
                 <input
                   type="text"
                   placeholder="Search investments..."
+                  value={mobileSearchQuery}
+                  onChange={(e) => setMobileSearchQuery(e.target.value)}
                   className="pl-10 py-2 pr-4 block w-full sm:text-sm border-gray-300 rounded-md focus:ring-lebanese-green focus:border-lebanese-green border"
                 />
-              </div>
+              </form>
             </div>
           </div>
         </div>

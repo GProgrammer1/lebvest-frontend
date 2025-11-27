@@ -1,5 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Helmet } from "react-helmet";
+import { useNavigate } from "react-router-dom";
+import apiClient from "@/api/common/apiClient";
+import { ResponsePayload } from "@/lib/types";
 import {
   Card,
   CardContent,
@@ -120,33 +123,71 @@ const mockNotifications = [
 ];
 
 const CompanyDashboard = () => {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [riskFilter, setRiskFilter] = useState("");
   const [minPortfolio, setMinPortfolio] = useState("");
   const [sectorFilter, setSectorFilter] = useState("");
   const [notifications, setNotifications] = useState(mockNotifications);
+  const [dashboardData, setDashboardData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [investors, setInvestors] = useState<any[]>([]);
+  const [investorsLoading, setInvestorsLoading] = useState(false);
+  const [investorsPage, setInvestorsPage] = useState(0);
+  const [investorsTotalPages, setInvestorsTotalPages] = useState(0);
+  const [investorsTotalElements, setInvestorsTotalElements] = useState(0);
 
-  const filteredInvestors = mockInvestors.filter((inv) => {
-    if (
-      searchQuery &&
-      !inv.name.toLowerCase().includes(searchQuery.toLowerCase())
-    ) {
-      return false;
-    }
-    if (riskFilter !== "all" && inv.riskLevel !== riskFilter) {
-      return false;
-    }
-    if (
-      minPortfolio !== "all" &&
-      inv.portfolioSize < parseInt(minPortfolio, 10)
-    ) {
-      return false;
-    }
-    if (sectorFilter !== "all" && !inv.sectors.includes(sectorFilter)) {
-      return false;
-    }
-    return true;
-  });
+  useEffect(() => {
+    const fetchDashboard = async () => {
+      try {
+        const response = await apiClient.get<ResponsePayload>("/companies/me/dashboard");
+        if (response.data.status === 200) {
+          setDashboardData(response.data.data.dashboard);
+        }
+      } catch (error) {
+        console.error("Error fetching company dashboard:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboard();
+  }, []);
+
+  useEffect(() => {
+    const fetchInvestors = async () => {
+      setInvestorsLoading(true);
+      try {
+        const params = new URLSearchParams();
+        if (searchQuery) params.append("query", searchQuery);
+        if (minPortfolio && minPortfolio !== "all") params.append("minPortfolio", minPortfolio);
+        if (riskFilter && riskFilter !== "all") params.append("riskLevel", riskFilter.toUpperCase());
+        if (sectorFilter && sectorFilter !== "all") params.append("category", sectorFilter.toUpperCase().replace(/\s+/g, '_'));
+        params.append("page", investorsPage.toString());
+        params.append("size", "20");
+
+        const response = await apiClient.get<ResponsePayload>(`/companies/me/investors?${params.toString()}`);
+        if (response.data.status === 200) {
+          const data = response.data.data;
+          setInvestors(data.investors || []);
+          setInvestorsTotalPages(data.totalPages || 0);
+          setInvestorsTotalElements(data.totalElements || 0);
+        }
+      } catch (error) {
+        console.error("Error fetching investors:", error);
+      } finally {
+        setInvestorsLoading(false);
+      }
+    };
+
+    fetchInvestors();
+  }, [searchQuery, riskFilter, minPortfolio, sectorFilter, investorsPage]);
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setInvestorsPage(0);
+  }, [searchQuery, riskFilter, minPortfolio, sectorFilter]);
+
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-US", {
@@ -327,52 +368,66 @@ const CompanyDashboard = () => {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {filteredInvestors.length > 0 ? (
-                          filteredInvestors.map((inv) => (
+                        {investorsLoading ? (
+                          <TableRow>
+                            <TableCell colSpan={5} className="text-center py-6">
+                              Loading investors...
+                            </TableCell>
+                          </TableRow>
+                        ) : investors.length > 0 ? (
+                          investors.map((inv) => (
                             <TableRow key={inv.id}>
                               <TableCell className="font-medium">
                                 {inv.name}
                               </TableCell>
                               <TableCell>
-                                {formatCurrency(inv.portfolioSize)}
+                                {formatCurrency(Number(inv.portfolioValue || 0))}
                               </TableCell>
                               <TableCell>
-                                <span
-                                  className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                    inv.riskLevel === "low"
-                                      ? "bg-blue-100 text-blue-700"
-                                      : inv.riskLevel === "medium"
-                                      ? "bg-yellow-100 text-yellow-700"
-                                      : "bg-red-100 text-red-700"
-                                  }`}
-                                >
-                                  {inv.riskLevel.charAt(0).toUpperCase() +
-                                    inv.riskLevel.slice(1)}
-                                </span>
+                                {inv.riskLevels && inv.riskLevels.length > 0 ? (
+                                  <div className="flex flex-wrap gap-1">
+                                    {Array.from(inv.riskLevels).map((risk: string) => (
+                                      <span
+                                        key={risk}
+                                        className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                          risk === "LOW"
+                                            ? "bg-blue-100 text-blue-700"
+                                            : risk === "MEDIUM"
+                                            ? "bg-yellow-100 text-yellow-700"
+                                            : "bg-red-100 text-red-700"
+                                        }`}
+                                      >
+                                        {risk.charAt(0) + risk.slice(1).toLowerCase()}
+                                      </span>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <span className="text-gray-400">N/A</span>
+                                )}
                               </TableCell>
                               <TableCell>
-                                {inv.sectors.map((sec) => (
-                                  <span
-                                    key={sec}
-                                    className="inline-block bg-gray-100 rounded-full px-2 py-1 text-xs font-medium text-gray-700 mr-1 mb-1"
-                                  >
-                                    {sec.replace("_", " ")}
-                                  </span>
-                                ))}
+                                {inv.categories && inv.categories.size > 0 ? (
+                                  <div className="flex flex-wrap gap-1">
+                                    {Array.from(inv.categories).slice(0, 3).map((cat: string) => (
+                                      <span
+                                        key={cat}
+                                        className="inline-block bg-gray-100 rounded-full px-2 py-1 text-xs font-medium text-gray-700"
+                                      >
+                                        {cat.replace(/_/g, " ")}
+                                      </span>
+                                    ))}
+                                    {inv.categories.size > 3 && (
+                                      <span className="text-xs text-gray-500">+{inv.categories.size - 3}</span>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="text-gray-400">N/A</span>
+                                )}
                               </TableCell>
                               <TableCell className="space-x-2">
                                 <Link to={`/investor-profile/${inv.id}`}>
                                   <Button variant="outline" size="sm">
                                     View Profile
-                                  </Button>
-                                </Link>
-                                <Link to={`/compare-investors/${inv.id}`}>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="ml-2"
-                                  >
-                                    Compare
                                   </Button>
                                 </Link>
                               </TableCell>
@@ -388,6 +443,31 @@ const CompanyDashboard = () => {
                       </TableBody>
                     </Table>
                   </div>
+                  {investorsTotalPages > 1 && (
+                    <div className="flex items-center justify-between mt-4">
+                      <div className="text-sm text-gray-500">
+                        Showing {investorsPage * 20 + 1} to {Math.min((investorsPage + 1) * 20, investorsTotalElements)} of {investorsTotalElements} investors
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setInvestorsPage(prev => Math.max(0, prev - 1))}
+                          disabled={investorsPage === 0 || investorsLoading}
+                        >
+                          Previous
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setInvestorsPage(prev => prev + 1)}
+                          disabled={investorsPage >= investorsTotalPages - 1 || investorsLoading}
+                        >
+                          Next
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -402,25 +482,60 @@ const CompanyDashboard = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="flex justify-end mb-6">
-                    <Button className="bg-lebanese-navy hover:bg-opacity-90">
+                    <Button 
+                      className="bg-lebanese-navy hover:bg-opacity-90"
+                      onClick={() => navigate("/list-project")}
+                    >
                       + New Project
                     </Button>
                   </div>
-                  <div className="text-center py-12">
-                    <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                      <Filter className="h-8 w-8 text-gray-400" />
+                  {loading ? (
+                    <div className="text-center py-12">
+                      <div>Loading...</div>
                     </div>
-                    <h3 className="text-lg font-medium text-gray-900">
-                      No projects yet
-                    </h3>
-                    <p className="mt-1 text-gray-500 max-w-sm mx-auto">
-                      Get started by creating your first investment project to
-                      attract funding
-                    </p>
+                  ) : dashboardData?.recentInvestments && dashboardData.recentInvestments.length > 0 ? (
+                    <div className="space-y-4">
+                      {dashboardData.recentInvestments.map((investment: any) => (
+                        <Card key={investment.id}>
+                          <CardContent className="p-6">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <h3 className="text-lg font-semibold">{investment.title}</h3>
+                                <p className="text-gray-600 mt-1">{investment.description}</p>
+                                <div className="flex gap-4 mt-3">
+                                  <span className="text-sm text-gray-500">
+                                    Target: {formatCurrency(investment.targetAmount || 0)}
+                                  </span>
+                                  <span className="text-sm text-gray-500">
+                                    Raised: {formatCurrency(investment.raisedAmount || 0)}
+                                  </span>
+                                </div>
+                              </div>
+                              <Badge>{investment.category}</Badge>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12">
+                      <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                        <Filter className="h-8 w-8 text-gray-400" />
+                      </div>
+                      <h3 className="text-lg font-medium text-gray-900">
+                        No projects yet
+                      </h3>
+                      <p className="mt-1 text-gray-500 max-w-sm mx-auto">
+                        Get started by creating your first investment project to
+                        attract funding
+                      </p>
                     <div className="mt-6">
-                      <Button>Create Your First Project</Button>
+                      <Button onClick={() => navigate("/list-project")}>
+                        Create Your First Project
+                      </Button>
                     </div>
-                  </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -438,33 +553,33 @@ const CompanyDashboard = () => {
                     <Card>
                       <CardContent className="p-6">
                         <div className="text-sm font-medium text-gray-500">
-                          Profile Views
+                          Total Investments
                         </div>
-                        <div className="text-3xl font-bold mt-2">124</div>
-                        <div className="text-sm text-green-600 mt-1">
-                          +12% from last month
-                        </div>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="p-6">
-                        <div className="text-sm font-medium text-gray-500">
-                          Investor Inquiries
-                        </div>
-                        <div className="text-3xl font-bold mt-2">8</div>
-                        <div className="text-sm text-green-600 mt-1">
-                          +3 new this week
+                        <div className="text-3xl font-bold mt-2">
+                          {dashboardData?.stats?.totalInvestments || 0}
                         </div>
                       </CardContent>
                     </Card>
                     <Card>
                       <CardContent className="p-6">
                         <div className="text-sm font-medium text-gray-500">
-                          Funding Progress
+                          Total Investors
                         </div>
-                        <div className="text-3xl font-bold mt-2">$0</div>
+                        <div className="text-3xl font-bold mt-2">
+                          {dashboardData?.stats?.totalInvestors || 0}
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="p-6">
+                        <div className="text-sm font-medium text-gray-500">
+                          Total Raised
+                        </div>
+                        <div className="text-3xl font-bold mt-2">
+                          {formatCurrency(Number(dashboardData?.stats?.totalRaised || 0))}
+                        </div>
                         <div className="text-sm text-gray-500 mt-1">
-                          No active funding rounds
+                          Target: {formatCurrency(Number(dashboardData?.stats?.totalTarget || 0))}
                         </div>
                       </CardContent>
                     </Card>
