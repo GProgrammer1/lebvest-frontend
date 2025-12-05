@@ -57,16 +57,24 @@ const InvestmentDetail: React.FC<InvestmentDetailProps> = ({ investment, onInves
   useEffect(() => {
     // Check if investment is in watchlist
     const checkWatchlist = async () => {
-      try {
-        // This would require a GET endpoint to check watchlist status
-        // For now, we'll assume it's not in watchlist
+      if (!isAuthenticated || !isInvestor) {
         setIsWatchlisted(false);
+        return;
+      }
+      
+      try {
+        const response = await apiClient.get<ResponsePayload>(`/investments/${investment.id}/watchlist/status`);
+        if (response.data.status === 200) {
+          const status = response.data.data.watchlistStatus;
+          setIsWatchlisted(status.isWatchlisted || false);
+        }
       } catch (error) {
         console.error("Error checking watchlist:", error);
+        setIsWatchlisted(false);
       }
     };
     checkWatchlist();
-  }, [investment.id]);
+  }, [investment.id, isAuthenticated, isInvestor]);
   
   const getRiskColor = (risk: string): string => {
     const colors: {[key: string]: string} = {

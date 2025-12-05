@@ -12,8 +12,10 @@ import { Check, X, ArrowLeft, UserIcon, Building2Icon, Calendar, Clock, DollarSi
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { InvestmentSector, InvestmentCategory, Location } from "@/lib/types";
+import apiClient from "@/api/common/apiClient";
+import { ResponsePayload } from "@/lib/types";
 
-// Mock project data
+// Mock project data (kept as fallback)
 const mockProjects = [
   {
     id: "project1",
@@ -128,17 +130,80 @@ const ProjectReview = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Fetch project data
-    setLoading(true);
-    setTimeout(() => {
-      const foundProject = mockProjects.find(p => p.id === id);
-      setProject(foundProject || null);
-      setLoading(false);
-    }, 500);
-  }, [id]);
+    const fetchProject = async () => {
+      if (!id) {
+        setLoading(false);
+        return;
+      }
 
-  const handleReviewSubmit = () => {
-    if (!reviewAction) {
+      setLoading(true);
+      try {
+        const response = await apiClient.get<ResponsePayload>(`/admin/projects/${id}`);
+        if (response.data.status === 200) {
+          const projectData = response.data.data.project;
+          // Map backend DTO to frontend format
+          setProject({
+            id: projectData.id?.toString() || id,
+            title: projectData.title || "",
+            companyName: projectData.companyName || "",
+            companyId: projectData.companyId?.toString() || "",
+            description: projectData.description || "",
+            longDescription: projectData.description || "", // Use description as longDescription
+            category: projectData.category?.toLowerCase().replace(/_/g, '_') || "",
+            sector: projectData.sector?.toLowerCase() || "",
+            riskLevel: projectData.riskLevel?.toLowerCase() || "medium",
+            expectedReturn: Number(projectData.expectedReturn || 0),
+            minInvestment: Number(projectData.minInvestment || 0),
+            targetAmount: Number(projectData.targetAmount || 0),
+            raisedAmount: Number(projectData.raisedAmount || 0),
+            location: projectData.location?.toLowerCase().replace(/\s+/g, '_') || "",
+            duration: projectData.durationMonths || 0,
+            status: projectData.status?.toLowerCase() || "pending_review",
+            submittedDate: projectData.submittedDate || projectData.createdAt || new Date().toISOString(),
+            deadline: projectData.deadline || "",
+            highlights: projectData.highlights || [],
+            team: projectData.team?.map((t: any) => ({
+              name: t.name || "",
+              role: t.role || "",
+              bio: t.bio || "",
+              imageUrl: t.imageUrl || ""
+            })) || [],
+            financials: projectData.financials?.map((f: any) => ({
+              revenue: Number(f.revenue || 0),
+              expenses: Number(f.expenses || 0),
+              profit: Number(f.profit || 0),
+              year: f.year || 0
+            })) || [],
+            documents: projectData.documents?.map((d: any) => ({
+              title: d.title || "",
+              type: d.type || "pdf",
+              url: d.url || "#"
+            })) || []
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: "Failed to load project details",
+            variant: "error",
+          });
+        }
+      } catch (error: any) {
+        console.error("Error fetching project:", error);
+        toast({
+          title: "Error",
+          description: error.response?.data?.message || "Failed to load project details",
+          variant: "error",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProject();
+  }, [id, toast]);
+
+  const handleReviewSubmit = async () => {
+    if (!reviewAction || !id) {
       toast({
         title: "Action required",
         description: "Please select either Approve or Reject before submitting",
@@ -156,17 +221,53 @@ const ProjectReview = () => {
       return;
     }
 
-    // Submit the review (mock)
-    const actionText = reviewAction === "approve" ? "approved" : "rejected";
-    
-    toast({
-      title: `Project ${actionText}`,
-      description: `You have successfully ${actionText} this project submission`,
-    });
-    
-    setTimeout(() => {
-      navigate("/admin-dashboard");
-    }, 1500);
+    try {
+      const actionText = reviewAction === "approve" ? "approved" : "rejected";
+      
+      if (reviewAction === "approve") {
+        const response = await apiClient.post<ResponsePayload>(
+          `/admin/projects/${id}/approve`,
+          { reviewNotes: reviewNotes.trim() || undefined }
+        );
+        
+        if (response.data.status === 200) {
+          toast({
+            title: "Project Approved",
+            description: "The project has been approved and is now visible to investors.",
+            variant: "success",
+          });
+          setTimeout(() => {
+            navigate("/admin-dashboard");
+          }, 1500);
+        }
+      } else {
+        const response = await apiClient.post<ResponsePayload>(
+          `/admin/projects/${id}/reject`,
+          { 
+            reason: reviewNotes.trim(),
+            reviewNotes: reviewNotes.trim()
+          }
+        );
+        
+        if (response.data.status === 200) {
+          toast({
+            title: "Project Rejected",
+            description: "The project has been rejected. The company will be notified.",
+            variant: "success",
+          });
+          setTimeout(() => {
+            navigate("/admin-dashboard");
+          }, 1500);
+        }
+      }
+    } catch (error: any) {
+      console.error("Error submitting review:", error);
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to submit review",
+        variant: "error",
+      });
+    }
   };
 
   const formatCurrency = (amount: number) => {
@@ -257,7 +358,9 @@ const ProjectReview = () => {
                 Review submission details and approve or reject this project
               </p>
             </div>
-            <Badge className="bg-yellow-500">Pending Review</Badge>
+            <Badge className={project?.status === "approved" ? "bg-green-500" : project?.status === "rejected" ? "bg-red-500" : "bg-yellow-500"}>
+              {project?.status === "approved" ? "Approved" : project?.status === "rejected" ? "Rejected" : "Pending Review"}
+            </Badge>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

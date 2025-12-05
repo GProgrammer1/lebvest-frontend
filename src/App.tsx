@@ -12,6 +12,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import InvestorProfile from "./pages/InvestorProfile";
 import CompareInvestors from "./pages/CompareInvestors";
 import ProjectReview from "./pages/ProjectReview";
+import AdminUserDetail from "./pages/AdminUserDetail";
 import ListProject from "./pages/ListProject";
 import SignIn from "./pages/SignIn";
 import Register from "./pages/Register";
@@ -40,6 +41,7 @@ const App = () => (
           <Route path="/company-dashboard" element={<CompanyDashboard />} />
           <Route path="/company-verification" element={<CompanyVerification />} />
           <Route path="/admin-dashboard" element={<AdminDashboard />} />
+          <Route path="/admin/users/:id" element={<AdminUserDetail />} />
           <Route path="/investor-profile/:id" element={<InvestorProfile />} />
           <Route path="/compare-investors/:id" element={<CompareInvestors />} />
           <Route path="/project-review/:id" element={<ProjectReview />} />
