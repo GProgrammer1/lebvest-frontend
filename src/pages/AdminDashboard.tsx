@@ -48,8 +48,11 @@ import apiClient from "@/api/common/apiClient";
 import { ResponsePayload } from "@/lib/types";
 import { toast } from "@/hooks/use-toast";
 import { getClaim } from "@/util/jwtUtil";
-
-// import { AdminNotification } from "@/lib/types";
+import { useWebSocket } from "@/hooks/useWebSocket";
+import { useAuth } from "@/hooks/useAuth";
+import { Circle } from "lucide-react";
+import ViewDocumentsDialog from "@/components/ViewDocumentsDialog";
+import { AdminNotification } from "@/lib/types";
 
 // Mock data for users
 const mockUsers = [
@@ -155,6 +158,9 @@ const mockMetrics = {
 };
 
 const AdminDashboard = () => {
+  const { isAuthenticated, role } = useAuth();
+  const isAdmin = role === 'Admin';
+  
   const [userSearchQuery, setUserSearchQuery] = useState("");
   const [userRoleFilter, setUserRoleFilter] = useState<
     "All" | "Investor" | "Company" | "Admin"
@@ -171,9 +177,12 @@ const AdminDashboard = () => {
     "All" | "active" | "pending_review" | "rejected"
   >("All");
   const [projectSearchQuery, setProjectSearchQuery] = useState("");
-  const [notifications, setNotifications] = useState([]);
+  const [notifications, setNotifications] = useState<AdminNotification[]>([]);
   const [rejectionReason, setRejectionReason] = useState<string>("");
   const [rejectingId, setRejectingId] = useState<number | null>(null);
+  const [viewDocumentsOpen, setViewDocumentsOpen] = useState(false);
+  const [selectedDocuments, setSelectedDocuments] = useState<string[]>([]);
+  const [selectedDocumentTitle, setSelectedDocumentTitle] = useState<string>("View Documents");
 
   const handleRejectClick = (notificationId: number) => {
     setRejectingId(notificationId);
@@ -188,62 +197,133 @@ const AdminDashboard = () => {
     setRejectingId(null); // hide textarea after submission
     setRejectionReason("");
   };
-  const filteredUsers = mockUsers.filter((user) => {
-    // Apply search filter
-    if (
-      userSearchQuery &&
-      !user.name.toLowerCase().includes(userSearchQuery.toLowerCase()) &&
-      !user.email.toLowerCase().includes(userSearchQuery.toLowerCase())
-    ) {
-      return false;
-    }
-    if (userRoleFilter !== "All" && user.role !== userRoleFilter) {
-      return false;
-    }
-    if (userStatusFilter !== "All" && user.status !== userStatusFilter)
-      return false;
+  const [users, setUsers] = useState<any[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [usersPage, setUsersPage] = useState(0);
+  const [usersTotalPages, setUsersTotalPages] = useState(0);
+  const [usersTotalElements, setUsersTotalElements] = useState(0);
 
-    // Apply role filter
-    if (userRoleFilter && user.role !== userRoleFilter) {
-      return false;
-    }
+  const [projects, setProjects] = useState<any[]>([]);
+  const [projectsLoading, setProjectsLoading] = useState(false);
+  const [projectsPage, setProjectsPage] = useState(0);
+  const [projectsTotalPages, setProjectsTotalPages] = useState(0);
+  const [projectsTotalElements, setProjectsTotalElements] = useState(0);
 
-    // Apply status filter
-    if (userStatusFilter && user.status !== userStatusFilter) {
-      return false;
-    }
+  // Fetch users
+  useEffect(() => {
+    const fetchUsers = async () => {
+      setUsersLoading(true);
+      try {
+        const params = new URLSearchParams();
+        if (userRoleFilter !== "All") params.append("role", userRoleFilter.toUpperCase());
+        if (userStatusFilter !== "All") params.append("status", userStatusFilter);
+        if (userSearchQuery) params.append("search", userSearchQuery);
+        params.append("page", usersPage.toString());
+        params.append("size", "20");
 
-    return true;
+        const response = await apiClient.get<ResponsePayload>(`/admin/users?${params.toString()}`);
+        if (response.data.status === 200) {
+          const data = response.data.data;
+          setUsers(data.users || []);
+          setUsersTotalPages(data.totalPages || 0);
+          setUsersTotalElements(data.totalElements || 0);
+        }
+      } catch (error) {
+        console.error("Error fetching users:", error);
+        setUsers([]);
+      } finally {
+        setUsersLoading(false);
+      }
+    };
+
+    fetchUsers();
+  }, [userRoleFilter, userStatusFilter, userSearchQuery, usersPage]);
+
+  // Fetch projects
+  useEffect(() => {
+    const fetchProjects = async () => {
+      setProjectsLoading(true);
+      try {
+        const params = new URLSearchParams();
+        if (projectStatusFilter !== "All") {
+          const statusMap: Record<string, string> = {
+            "pending_review": "PENDING_REVIEW",
+            "active": "APPROVED",
+            "rejected": "REJECTED"
+          };
+          params.append("status", statusMap[projectStatusFilter] || "PENDING_REVIEW");
+        }
+        // If "All", don't add status param - backend will return all statuses
+        if (projectCategoryFilter !== "All") {
+          params.append("category", projectCategoryFilter.toUpperCase().replace(/\s+/g, '_'));
+        }
+        if (projectSearchQuery) params.append("search", projectSearchQuery);
+        params.append("page", projectsPage.toString());
+        params.append("size", "20");
+
+        const response = await apiClient.get<ResponsePayload>(`/admin/projects/pending?${params.toString()}`);
+        if (response.data.status === 200) {
+          const data = response.data.data;
+          const mappedProjects = (data.projects || []).map((p: any) => ({
+            id: p.id?.toString() || "",
+            name: p.title || "",
+            company: p.companyName || "",
+            category: p.category?.toLowerCase().replace(/_/g, '_') || "",
+            status: p.status?.toLowerCase() || "pending_review",
+            submittedDate: p.submittedDate || p.createdAt || new Date().toISOString()
+          }));
+          setProjects(mappedProjects);
+          setProjectsTotalPages(data.totalPages || 0);
+          setProjectsTotalElements(data.totalElements || 0);
+        }
+      } catch (error) {
+        console.error("Error fetching projects:", error);
+        setProjects([]);
+      } finally {
+        setProjectsLoading(false);
+      }
+    };
+
+    fetchProjects();
+  }, [projectStatusFilter, projectCategoryFilter, projectSearchQuery, projectsPage]);
+
+  // WebSocket connection for user activity monitoring (admin only)
+  const { isConnected: isWebSocketConnected } = useWebSocket({
+    enabled: isAdmin && isAuthenticated,
+    onUserActivity: (message) => {
+      // Update user's online status when activity message is received
+      setUsers((prevUsers) =>
+        prevUsers.map((user) =>
+          user.id === message.userId
+            ? {
+                ...user,
+                isOnline: message.isOnline,
+                lastSeen: message.lastSeen,
+              }
+            : user
+        )
+      );
+    },
+    onConnect: () => {
+      // WebSocket connected - user will be marked online via heartbeat
+    },
+    onDisconnect: () => {
+      // WebSocket disconnected - handled silently
+    },
   });
 
-  const filteredProjects = mockProjects.filter((project) => {
-    // Apply search filter
-    if (
-      projectSearchQuery &&
-      !project.name.toLowerCase().includes(projectSearchQuery.toLowerCase()) &&
-      !project.company.toLowerCase().includes(projectSearchQuery.toLowerCase())
-    ) {
-      return false;
-    }
-    if (
-      projectCategoryFilter !== "All" &&
-      project.category !== projectCategoryFilter
-    )
-      return false;
-    if (projectStatusFilter !== "All" && project.status !== projectStatusFilter)
-      return false;
-    // Apply category filter
-    if (projectCategoryFilter && project.category !== projectCategoryFilter) {
-      return false;
-    }
+  // Reset to first page when filters change
+  useEffect(() => {
+    setUsersPage(0);
+  }, [userRoleFilter, userStatusFilter, userSearchQuery]);
 
-    // Apply status filter
-    if (projectStatusFilter && project.status !== projectStatusFilter) {
-      return false;
-    }
+  useEffect(() => {
+    setProjectsPage(0);
+  }, [projectStatusFilter, projectCategoryFilter, projectSearchQuery]);
 
-    return true;
-  });
+  const filteredUsers = users; // Already filtered by API
+
+  const filteredProjects = projects; // Already filtered by API
 
   const formatDate = (date: string | Date) => {
     const parsedDate = typeof date === "string" ? new Date(date) : date;
@@ -274,7 +354,7 @@ const AdminDashboard = () => {
     },
   });
 
-  const unreadCount = notifications.filter((noti) => !noti.read).length;
+  const unreadCount = notifications.filter((noti) => !noti.isRead).length;
 
   const handleApprove = async (reqId: number, notificationId: number) => {
     try {
@@ -369,6 +449,12 @@ const AdminDashboard = () => {
             <FileText className="h-6 w-6 text-green-600" />
           </div>
         );
+      case "VERIFICATION_REQUEST":
+        return (
+          <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center">
+            <FileText className="h-6 w-6 text-purple-600" />
+          </div>
+        );
       case "APP_STAT_UPDATE":
         return (
           <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center">
@@ -417,7 +503,7 @@ const AdminDashboard = () => {
   }, []);
 
   const getStatusBadge = (status: string) => {
-    switch (status) {
+    switch (status?.toLowerCase()) {
       case "active":
         return <Badge className="bg-green-500">Active</Badge>;
       case "inactive":
@@ -426,20 +512,24 @@ const AdminDashboard = () => {
             Inactive
           </Badge>
         );
+      case "locked":
+        return <Badge className="bg-red-500">Locked</Badge>;
       case "pending":
         return <Badge className="bg-yellow-500">Pending</Badge>;
       case "pending_review":
         return <Badge className="bg-yellow-500">Pending Review</Badge>;
+      case "approved":
+        return <Badge className="bg-green-500">Approved</Badge>;
       case "rejected":
         return <Badge className="bg-red-500">Rejected</Badge>;
       default:
-        return <Badge variant="outline">{status}</Badge>;
+        return <Badge variant="outline">{status || "Unknown"}</Badge>;
     }
   };
 
   async function handleMarkAsRead(id: number) {
     try {
-      const response = await apiClient.put("/admin/read-notification", id, {
+      const response = await apiClient.put(`/admin/read-notification/${id}`, {}, {
         headers: {
           "Content-Type": "application/json",
         },
@@ -632,12 +722,19 @@ const AdminDashboard = () => {
                           <TableHead>Email</TableHead>
                           <TableHead>Role</TableHead>
                           <TableHead>Status</TableHead>
+                          <TableHead>Online</TableHead>
                           <TableHead>Join Date</TableHead>
                           <TableHead>Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {filteredUsers.length > 0 ? (
+                        {usersLoading ? (
+                          <TableRow>
+                            <TableCell colSpan={8} className="text-center py-6">
+                              Loading users...
+                            </TableCell>
+                          </TableRow>
+                        ) : filteredUsers.length > 0 ? (
                           filteredUsers.map((user) => (
                             <TableRow key={user.id}>
                               <TableCell className="font-mono">
@@ -648,22 +745,63 @@ const AdminDashboard = () => {
                               </TableCell>
                               <TableCell>{user.email}</TableCell>
                               <TableCell className="capitalize">
-                                {user.role}
+                                {user.roles && Array.from(user.roles).length > 0 
+                                  ? Array.from(user.roles)[0].toString().toLowerCase()
+                                  : "N/A"}
                               </TableCell>
                               <TableCell>
                                 {getStatusBadge(user.status)}
                               </TableCell>
                               <TableCell>
-                                {new Date(user.joinDate).toLocaleDateString()}
+                                {user.isOnline === true ? (
+                                  <Badge className="bg-green-500 flex items-center gap-1 w-fit">
+                                    <Circle className="h-2 w-2 fill-current" />
+                                    Online
+                                  </Badge>
+                                ) : user.isOnline === false ? (
+                                  <Badge variant="outline" className="text-gray-500">
+                                    Offline
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-gray-400">
+                                    Unknown
+                                  </Badge>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "N/A"}
                               </TableCell>
                               <TableCell className="space-x-2">
-                                <Button variant="outline" size="sm">
-                                  View
+                                <Button variant="outline" size="sm" asChild>
+                                  <Link to={`/admin/users/${user.id}`}>
+                                    View
+                                  </Link>
                                 </Button>
                                 <Button
                                   variant="outline"
                                   size="sm"
                                   className="border-red-200 hover:border-red-300 hover:bg-red-50"
+                                  onClick={async () => {
+                                    try {
+                                      const newStatus = user.status === "active" ? "inactive" : "active";
+                                      await apiClient.put(`/admin/users/${user.id}/status`, {
+                                        status: newStatus
+                                      });
+                                      toast({
+                                        title: "Success",
+                                        description: `User ${newStatus === "active" ? "activated" : "deactivated"} successfully`,
+                                        variant: "success",
+                                      });
+                                      // Refresh users
+                                      setUsersPage(0);
+                                    } catch (error: any) {
+                                      toast({
+                                        title: "Error",
+                                        description: error.response?.data?.message || "Failed to update user status",
+                                        variant: "error",
+                                      });
+                                    }
+                                  }}
                                 >
                                   {user.status === "active"
                                     ? "Deactivate"
@@ -674,7 +812,7 @@ const AdminDashboard = () => {
                           ))
                         ) : (
                           <TableRow>
-                            <TableCell colSpan={7} className="text-center py-6">
+                            <TableCell colSpan={8} className="text-center py-6">
                               No users match your filter criteria
                             </TableCell>
                           </TableRow>
@@ -682,6 +820,31 @@ const AdminDashboard = () => {
                       </TableBody>
                     </Table>
                   </div>
+                  {usersTotalPages > 1 && (
+                    <div className="flex items-center justify-between mt-4">
+                      <div className="text-sm text-gray-500">
+                        Showing {usersPage * 20 + 1} to {Math.min((usersPage + 1) * 20, usersTotalElements)} of {usersTotalElements} users
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setUsersPage(prev => Math.max(0, prev - 1))}
+                          disabled={usersPage === 0 || usersLoading}
+                        >
+                          Previous
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setUsersPage(prev => prev + 1)}
+                          disabled={usersPage >= usersTotalPages - 1 || usersLoading}
+                        >
+                          Next
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -753,10 +916,10 @@ const AdminDashboard = () => {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="All">All statuses</SelectItem>
-                          <SelectItem value="active">Active</SelectItem>
                           <SelectItem value="pending_review">
                             Pending Review
                           </SelectItem>
+                          <SelectItem value="active">Approved</SelectItem>
                           <SelectItem value="rejected">Rejected</SelectItem>
                         </SelectContent>
                       </Select>
@@ -777,7 +940,13 @@ const AdminDashboard = () => {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {filteredProjects.length > 0 ? (
+                        {projectsLoading ? (
+                          <TableRow>
+                            <TableCell colSpan={7} className="text-center py-6">
+                              Loading projects...
+                            </TableCell>
+                          </TableRow>
+                        ) : filteredProjects.length > 0 ? (
                           filteredProjects.map((project) => (
                             <TableRow key={project.id}>
                               <TableCell className="font-mono">
@@ -788,7 +957,7 @@ const AdminDashboard = () => {
                               </TableCell>
                               <TableCell>{project.company}</TableCell>
                               <TableCell className="capitalize">
-                                {project.category.replace("_", " ")}
+                                {project.category.replace(/_/g, " ")}
                               </TableCell>
                               <TableCell>
                                 {getStatusBadge(project.status)}
@@ -847,6 +1016,31 @@ const AdminDashboard = () => {
                       </TableBody>
                     </Table>
                   </div>
+                  {projectsTotalPages > 1 && (
+                    <div className="flex items-center justify-between mt-4">
+                      <div className="text-sm text-gray-500">
+                        Showing {projectsPage * 20 + 1} to {Math.min((projectsPage + 1) * 20, projectsTotalElements)} of {projectsTotalElements} projects
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setProjectsPage(prev => Math.max(0, prev - 1))}
+                          disabled={projectsPage === 0 || projectsLoading}
+                        >
+                          Previous
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setProjectsPage(prev => prev + 1)}
+                          disabled={projectsPage >= projectsTotalPages - 1 || projectsLoading}
+                        >
+                          Next
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -1144,7 +1338,7 @@ const AdminDashboard = () => {
                     <Card
                       key={notification.id}
                       className={`transition-colors ${
-                        notification.read ? "bg-white" : "bg-yellow-50"
+                        notification.isRead ? "bg-white" : "bg-yellow-50"
                       }`}
                     >
                       <CardContent className="p-4">
@@ -1178,7 +1372,7 @@ const AdminDashboard = () => {
                                   </Link>
                                 </div>
                               )} */}
-                              {!notification.read && (
+                              {!notification.isRead && (
                                 <div className="mt-2 flex justify-start">
                                   <Button
                                     size="sm"
@@ -1188,6 +1382,24 @@ const AdminDashboard = () => {
                                     }
                                   >
                                     Mark as Read
+                                  </Button>
+                                </div>
+                              )}
+                              {/* View Documents Button */}
+                              {notification.documentUrls && notification.documentUrls.length > 0 && (
+                                <div className="mt-2 flex justify-start">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="flex items-center gap-1"
+                                    onClick={() => {
+                                      setSelectedDocuments(notification.documentUrls || []);
+                                      setSelectedDocumentTitle(notification.title);
+                                      setViewDocumentsOpen(true);
+                                    }}
+                                  >
+                                    <FileText className="h-4 w-4" />
+                                    View Documents ({notification.documentUrls.length})
                                   </Button>
                                 </div>
                               )}
@@ -1273,7 +1485,7 @@ const AdminDashboard = () => {
                             </div>
                           </div>
 
-                          {!notification.is_read && (
+                          {!notification.isRead && (
                             <div className="ml-4">
                               <Badge className="bg-blue-500">New</Badge>
                             </div>
@@ -1289,6 +1501,12 @@ const AdminDashboard = () => {
         </div>
       </main>
       <Footer />
+      <ViewDocumentsDialog
+        open={viewDocumentsOpen}
+        onOpenChange={setViewDocumentsOpen}
+        documentUrls={selectedDocuments}
+        title={selectedDocumentTitle}
+      />
     </div>
   );
 };
