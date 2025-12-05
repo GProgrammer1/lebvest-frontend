@@ -136,19 +136,25 @@ const CompanyDashboard = () => {
   const [investorsPage, setInvestorsPage] = useState(0);
   const [investorsTotalPages, setInvestorsTotalPages] = useState(0);
   const [investorsTotalElements, setInvestorsTotalElements] = useState(0);
+  const [needsVerification, setNeedsVerification] = useState(false);
 
   useEffect(() => {
     const fetchDashboard = async () => {
       try {
         // First check company profile status
         const profileResponse = await apiClient.get<ResponsePayload>("/companies/me/profile");
-        const companyStatus = profileResponse.data?.data?.profile?.status;
+        console.log("Full profile response:", profileResponse.data);
+        const profile = profileResponse.data?.data?.profile;
+        console.log("Profile object:", profile);
+        const companyStatus = profile?.status;
+        console.log("Company status:", companyStatus);
         
-        if (companyStatus === "APPROVED") {
-          // Redirect to verification page
-          navigate("/company-verification");
-          return;
-        }
+        // Check if company is approved (step 1) but not fully verified (step 2)
+        // Status "APPROVED" means admin approved step 1, but step 2 verification is still needed
+        // Status "FULLY_VERIFIED" means both steps are complete
+        const shouldShowVerification = companyStatus === "APPROVED" || companyStatus === "PENDING_DOCS";
+        console.log("Should show verification button:", shouldShowVerification);
+        setNeedsVerification(shouldShowVerification);
         
         const response = await apiClient.get<ResponsePayload>("/companies/me/dashboard");
         if (response.data.status === 200) {
@@ -238,6 +244,33 @@ const CompanyDashboard = () => {
       <Navbar />
       <main className="flex-grow p-6 bg-gray-50">
         <div className="max-w-7xl mx-auto">
+          {/* Verification Banner */}
+          {/* Temporary test: Change to true to test if banner renders */}
+          {(needsVerification || true) && (
+            <div className="mb-6 bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-md">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm text-yellow-700">
+                      <span className="font-medium">Action Required:</span> Complete your company verification to start posting projects.
+                    </p>
+                  </div>
+                </div>
+                <Button 
+                  onClick={() => navigate("/company-verification")}
+                  className="bg-yellow-600 hover:bg-yellow-700 text-white whitespace-nowrap"
+                >
+                  Complete Verification
+                </Button>
+              </div>
+            </div>
+          )}
+          
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
             <div>
               <h1 className="text-2xl font-bold text-lebanese-navy">

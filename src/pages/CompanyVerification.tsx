@@ -84,23 +84,19 @@ const CompanyVerification = () => {
     formDataObj.append("file", file);
     
     try {
-      const response = await apiClient.post<{ status: number; data: { documentUrl: string } }>(
+      const response = await apiClient.post<{ status: number; message: string; data: { documentUrl: string } }>(
         "/companies/me/documents",
-        formDataObj,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        }
+        formDataObj
       );
       
       if (response.data.status === 201) {
         return response.data.data.documentUrl;
       }
-      throw new Error("Upload failed");
-    } catch (error) {
+      throw new Error(response.data.message || "Upload failed");
+    } catch (error: any) {
       console.error("File upload error:", error);
-      throw error;
+      const errorMessage = error.response?.data?.message || error.message || "Failed to upload file";
+      throw new Error(errorMessage);
     }
   };
 
@@ -190,9 +186,14 @@ const CompanyVerification = () => {
     accept: string = ".pdf,.jpg,.jpeg,.png",
     required: boolean = true
   ) => {
-    const fileName = uploadedFiles[field] || (formData[field] as string)?.split('/').pop();
+    // Get filename from uploadedFiles (user-friendly name) or extract from documentUrl path
+    const uploadedFileName = uploadedFiles[field];
+    const documentUrl = formData[field] as string;
+    const fileNameFromUrl = documentUrl ? documentUrl.split('/').pop() : null;
+    const fileName = uploadedFileName || fileNameFromUrl;
+    
     return (
-      <div className="border-dashed border-2 border-gray-300 rounded-lg p-6 text-center">
+      <div className="border-dashed border-2 border-gray-300 rounded-lg p-4 sm:p-6 text-center overflow-hidden">
         <Label htmlFor={id} className="block mb-2 text-sm font-medium">
           {label} {required && "*"}
         </Label>
@@ -211,9 +212,11 @@ const CompanyVerification = () => {
           {fileName ? "Change file" : "Select file"}
         </button>
         {fileName ? (
-          <div className="mt-2 flex items-center justify-center gap-2 text-green-700 text-sm font-medium">
-            <CheckCircle className="w-4 h-4" />
-            <span>{fileName}</span>
+          <div className="mt-2 flex items-center justify-center gap-2 text-green-700 text-sm font-medium px-2 w-full min-w-0">
+            <CheckCircle className="w-4 h-4 flex-shrink-0" />
+            <span className="truncate max-w-full break-words overflow-wrap-anywhere" title={fileName}>
+              {fileName}
+            </span>
           </div>
         ) : (
           <p className="mt-1 text-xs text-gray-500">
@@ -233,7 +236,7 @@ const CompanyVerification = () => {
   ) => {
     const files = multipleFiles[field] || [];
     return (
-      <div className="border-dashed border-2 border-gray-300 rounded-lg p-6 text-center">
+      <div className="border-dashed border-2 border-gray-300 rounded-lg p-4 sm:p-6 text-center overflow-hidden">
         <Label htmlFor={id} className="block mb-2 text-sm font-medium">
           {label} {required && "*"}
         </Label>
@@ -253,11 +256,13 @@ const CompanyVerification = () => {
           {files.length > 0 ? "Add more files" : "Select files"}
         </button>
         {files.length > 0 && (
-          <div className="mt-2 space-y-1">
+          <div className="mt-2 space-y-1 px-2 w-full">
             {files.map((fileName, idx) => (
-              <div key={idx} className="flex items-center justify-center gap-2 text-green-700 text-sm font-medium">
-                <CheckCircle className="w-4 h-4" />
-                <span>{fileName}</span>
+              <div key={idx} className="flex items-center justify-center gap-2 text-green-700 text-sm font-medium w-full min-w-0">
+                <CheckCircle className="w-4 h-4 flex-shrink-0" />
+                <span className="truncate max-w-full break-words overflow-wrap-anywhere" title={fileName}>
+                  {fileName}
+                </span>
               </div>
             ))}
           </div>

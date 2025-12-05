@@ -1,17 +1,47 @@
 
-import { useState, FormEvent } from 'react';
+import { useState, FormEvent, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
-import { Search, User, LogOut } from 'lucide-react';
+import { Search, User, LogOut, CheckCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import apiClient from '@/api/common/apiClient';
+import { ResponsePayload } from '@/lib/types';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileSearchQuery, setMobileSearchQuery] = useState('');
   const [logoError, setLogoError] = useState(false);
+  const [needsVerification, setNeedsVerification] = useState(false);
   const navigate = useNavigate();
   const { isAuthenticated, role } = useAuth();
+
+  useEffect(() => {
+    const checkVerificationStatus = async () => {
+      if (isAuthenticated && role === 'Company') {
+        try {
+          const profileResponse = await apiClient.get<ResponsePayload>("/companies/me/profile");
+          const companyStatus = profileResponse.data?.data?.profile?.status;
+          
+          // Check if company is approved (step 1) but not fully verified (step 2)
+          // Status "APPROVED" means admin approved step 1, but step 2 verification is still needed
+          // Status "FULLY_VERIFIED" means both steps are complete
+          if (companyStatus === "APPROVED" || companyStatus === "PENDING_DOCS") {
+            setNeedsVerification(true);
+          } else {
+            setNeedsVerification(false);
+          }
+        } catch (error) {
+          console.error("Error checking verification status:", error);
+          setNeedsVerification(false);
+        }
+      } else {
+        setNeedsVerification(false);
+      }
+    };
+
+    checkVerificationStatus();
+  }, [isAuthenticated, role]);
 
   const handleLogout = () => {
     localStorage.removeItem('authToken');
@@ -104,6 +134,15 @@ const Navbar = () => {
             </form>
             {isAuthenticated ? (
               <div className="flex items-center gap-2">
+                {needsVerification && (
+                  <Button 
+                    onClick={() => navigate("/company-verification")}
+                    className="bg-yellow-600 hover:bg-yellow-700 text-white"
+                  >
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Complete Verification
+                  </Button>
+                )}
                 <span className="text-sm text-gray-600">{role}</span>
                 <Button 
                   variant="outline" 
@@ -153,6 +192,20 @@ const Navbar = () => {
       {/* Mobile menu */}
       {isMenuOpen && (
         <div className="md:hidden">
+          {needsVerification && (
+            <div className="px-4 py-3 bg-yellow-50 border-b border-yellow-200">
+              <Button 
+                onClick={() => {
+                  navigate("/company-verification");
+                  setIsMenuOpen(false);
+                }}
+                className="w-full bg-yellow-600 hover:bg-yellow-700 text-white"
+              >
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Complete Verification
+              </Button>
+            </div>
+          )}
           <div className="pt-2 pb-3 space-y-1">
             <Link
               to="/investments"
