@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, forwardRef, useImperativeHandle } from "react";
 import { 
   Form, 
   FormControl, 
@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Select, 
   SelectContent, 
@@ -31,6 +32,10 @@ import {
 
 interface ProjectFormProps {
   step: 1 | 2 | 3;
+}
+
+export interface ProjectFormHandle {
+  getFormData: () => any;
 }
 
 // Schema for step 1
@@ -72,7 +77,7 @@ const documentSchema = z.object({
   }),
 });
 
-const ProjectForm = ({ step }: ProjectFormProps) => {
+const ProjectForm = forwardRef<ProjectFormHandle, ProjectFormProps>(({ step }, ref) => {
   // Form definitions for each step
   const basicInfoForm = useForm<z.infer<typeof basicInfoSchema>>({
     resolver: zodResolver(basicInfoSchema),
@@ -106,11 +111,38 @@ const ProjectForm = ({ step }: ProjectFormProps) => {
     },
   });
 
-  // Use state to store form values across steps
-  const [formData, setFormData] = useState({
-    ...basicInfoForm.getValues(),
-    ...businessDetailsForm.getValues(),
-  });
+  // Expose form data to parent
+  useImperativeHandle(ref, () => ({
+    getFormData: async () => {
+      const basicData = basicInfoForm.getValues();
+      const businessData = businessDetailsForm.getValues();
+      const documentData = documentForm.getValues();
+
+      // Validate current step
+      if (step === 1) {
+        const isValid = await basicInfoForm.trigger();
+        if (!isValid) {
+          return null;
+        }
+      } else if (step === 2) {
+        const isValid = await businessDetailsForm.trigger();
+        if (!isValid) {
+          return null;
+        }
+      } else if (step === 3) {
+        const isValid = await documentForm.trigger();
+        if (!isValid) {
+          return null;
+        }
+      }
+
+      return {
+        ...basicData,
+        ...businessData,
+        ...documentData,
+      };
+    },
+  }));
 
   // Render appropriate form based on step
   const renderStepContent = () => {
@@ -497,25 +529,34 @@ const ProjectForm = ({ step }: ProjectFormProps) => {
               </div>
             </div>
             
-            <div className="flex items-start">
-              <div className="flex items-center h-5">
-                <input
-                  id="terms"
-                  name="terms"
-                  type="checkbox"
-                  className="h-4 w-4 border-gray-300 rounded text-lebanese-navy focus:ring-lebanese-green"
+            <Form {...documentForm}>
+              <form className="space-y-6">
+                <FormField
+                  control={documentForm.control}
+                  name="termsAgreed"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel className="font-medium text-gray-700 cursor-pointer">
+                          I agree to the Terms and Conditions
+                        </FormLabel>
+                        <FormDescription className="text-gray-500">
+                          By checking this box, I confirm that all information provided is accurate and I accept the 
+                          <a href="#" className="text-lebanese-navy hover:underline"> terms and conditions</a> of listing on LebVest.
+                        </FormDescription>
+                        <FormMessage />
+                      </div>
+                    </FormItem>
+                  )}
                 />
-              </div>
-              <div className="ml-3 text-sm">
-                <label htmlFor="terms" className="font-medium text-gray-700">
-                  I agree to the Terms and Conditions
-                </label>
-                <p className="text-gray-500">
-                  By checking this box, I confirm that all information provided is accurate and I accept the 
-                  <a href="#" className="text-lebanese-navy hover:underline"> terms and conditions</a> of listing on LebVest.
-                </p>
-              </div>
-            </div>
+              </form>
+            </Form>
             
             <div className="p-4 bg-yellow-50 rounded-lg">
               <div className="flex items-start">
@@ -550,6 +591,8 @@ const ProjectForm = ({ step }: ProjectFormProps) => {
       {renderStepContent()}
     </div>
   );
-};
+});
+
+ProjectForm.displayName = "ProjectForm";
 
 export default ProjectForm;

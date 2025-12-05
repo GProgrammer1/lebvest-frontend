@@ -12,6 +12,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import InvestorProfile from "./pages/InvestorProfile";
 import CompareInvestors from "./pages/CompareInvestors";
 import ProjectReview from "./pages/ProjectReview";
+import AdminUserDetail from "./pages/AdminUserDetail";
 import ListProject from "./pages/ListProject";
 import SignIn from "./pages/SignIn";
 import Register from "./pages/Register";
@@ -23,7 +24,8 @@ import FAQ from "./pages/FAQ";
 import HowItWorks from "./pages/HowItWorks";
 import NotFound from "./pages/NotFound";
 import ResetPassword from "./pages/ResetPassword";
-import InvestorSettings from "./pages/InvestorSettings";
+import CompanyVerification from "./pages/CompanyVerification";
+import ChatBot from "./components/ChatBot";
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -37,9 +39,10 @@ const App = () => (
           <Route path="/investments" element={<Investments />} />
           <Route path="/investments/:id" element={<InvestmentDetail />} />
           <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/investor-settings" element={<InvestorSettings />} />
           <Route path="/company-dashboard" element={<CompanyDashboard />} />
+          <Route path="/company-verification" element={<CompanyVerification />} />
           <Route path="/admin-dashboard" element={<AdminDashboard />} />
+          <Route path="/admin/users/:id" element={<AdminUserDetail />} />
           <Route path="/investor-profile/:id" element={<InvestorProfile />} />
           <Route path="/compare-investors/:id" element={<CompareInvestors />} />
           <Route path="/project-review/:id" element={<ProjectReview />} />
@@ -52,10 +55,11 @@ const App = () => (
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/faq" element={<FAQ />} />
           <Route path="/how-it-works" element={<HowItWorks />} />
-          <Route path="/reset-password/:token" element={<ResetPassword />} />
+          <Route path="/reset-password/:token" element={<ResetPassword/>}/>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
+        <ChatBot />
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
