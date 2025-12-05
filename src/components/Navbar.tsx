@@ -9,6 +9,7 @@ const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileSearchQuery, setMobileSearchQuery] = useState('');
+  const [logoError, setLogoError] = useState(false);
   const navigate = useNavigate();
   const { isAuthenticated, role } = useAuth();
 
@@ -35,8 +36,19 @@ const Navbar = () => {
         <div className="flex justify-between h-16">
           <div className="flex items-center">
             <Link to="/" className="flex-shrink-0 flex items-center">
-              <div className="h-10 w-10 bg-lebanese-navy rounded-md flex items-center justify-center">
-                <span className="text-white font-bold text-xl">L</span>
+              <div className="h-10 w-10 rounded-md flex items-center justify-center overflow-hidden">
+                {logoError ? (
+                  <div className="h-full w-full bg-lebanese-navy rounded-md flex items-center justify-center">
+                    <span className="text-white font-bold text-xl">L</span>
+                  </div>
+                ) : (
+                  <img 
+                    src="/logo.png" 
+                    alt="LebVest Logo" 
+                    className="h-full w-full object-contain"
+                    onError={() => setLogoError(true)}
+                  />
+                )}
               </div>
               <span className="ml-2 text-xl font-bold text-lebanese-navy">LebVest</span>
             </Link>
