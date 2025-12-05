@@ -471,36 +471,148 @@ const AdminDashboard = () => {
   };
 
   useEffect(() => {
+    if (!isAuthenticated || !isAdmin) {
+      return;
+    }
+
     const token = localStorage.getItem("authToken");
+    if (!token) {
+      console.warn("No authToken found in localStorage");
+      return;
+    }
 
-    const adminId = getClaim("userId", token );
-    const eventSource = new EventSource(
-      `http://localhost:8080/sse/admin/company-signups?adminId=${adminId}`
-    );
+    // Debug: Try to decode token and see what claims it has
+    let decodedToken: any = null;
+    try {
+      decodedToken = JSON.parse(atob(token.split('.')[1]));
+      console.log("Token claims:", decodedToken);
+      console.log("Available claims:", Object.keys(decodedToken));
+      console.log("userId value (direct):", decodedToken?.userId, "type:", typeof decodedToken?.userId);
+    } catch (e) {
+      console.error("Failed to decode token for debugging:", e);
+    }
 
-    eventSource.addEventListener("company-signup", (event: MessageEvent) => {
-      try {
-        console.log("New eevnt:", event);
-
-        const newRequest = JSON.parse(event.data);
-        console.log("New company signup request received via SSE:", newRequest);
-
-        setNotifications((prev) => [...prev, newRequest]);
-     
-      } catch (err) {
-        console.error("Failed to parse SSE data:", err);
+    let adminId = getClaim("userId", token);
+    
+    // If userId is not found via getClaim, try to get it from the decoded token directly
+    if (!adminId && decodedToken) {
+      // Try different possible keys and handle number/string conversion
+      const userIdValue = decodedToken.userId ?? decodedToken.id ?? decodedToken.user_id;
+      if (userIdValue !== null && userIdValue !== undefined) {
+        adminId = String(userIdValue);
+        console.log("Found adminId from decoded token directly:", adminId);
       }
-    });
+    }
+    
+    if (!adminId) {
+      console.error("Could not extract admin ID from token. Token exists but userId claim is missing or empty.");
+      console.error("Token structure:", decodedToken);
+      console.error("userId from decodedToken:", decodedToken?.userId);
+      // Try alternative claim names
+      const idClaim = getClaim("id", token);
+      const subClaim = getClaim("sub", token);
+      console.log("Tried alternative claims - id:", idClaim, "sub:", subClaim);
+      return;
+    }
+    
+    console.log("Successfully extracted adminId:", adminId);
 
-    eventSource.onerror = (err) => {
-      console.error("SSE connection error:", err);
-      eventSource.close();
+    // Get API URL from environment variable or use default
+    const apiUrl = import.meta.env.VITE_API_URL || import.meta.env.REACT_APP_API_URL || 'http://localhost:8080';
+    // Remove trailing slash if present
+    const baseUrl = apiUrl.replace(/\/$/, '');
+    // Pass token as query parameter since EventSource doesn't support custom headers
+    const sseUrl = `${baseUrl}/sse/admin/company-signups?adminId=${adminId}&token=${encodeURIComponent(token)}`;
+
+    let eventSource: EventSource | null = null;
+    let reconnectTimeout: NodeJS.Timeout | null = null;
+    let reconnectAttempts = 0;
+    const maxReconnectAttempts = 5;
+    const reconnectDelay = 3000; // 3 seconds
+
+    const connect = () => {
+      try {
+        eventSource = new EventSource(sseUrl);
+
+        eventSource.addEventListener("company-signup", (event: MessageEvent) => {
+          try {
+            console.log("New event:", event);
+            const newRequest = JSON.parse(event.data);
+            console.log("New company signup request received via SSE:", newRequest);
+            setNotifications((prev) => [...prev, newRequest]);
+            reconnectAttempts = 0; // Reset on successful message
+          } catch (err) {
+            console.error("Failed to parse SSE data:", err);
+          }
+        });
+
+        eventSource.addEventListener("verification-request", (event: MessageEvent) => {
+          try {
+            console.log("New verification request event:", event);
+            const newRequest = JSON.parse(event.data);
+            console.log("New verification request received via SSE:", newRequest);
+            setNotifications((prev) => [...prev, newRequest]);
+            reconnectAttempts = 0; // Reset on successful message
+          } catch (err) {
+            console.error("Failed to parse SSE data:", err);
+          }
+        });
+
+        eventSource.addEventListener("project-proposal", (event: MessageEvent) => {
+          try {
+            console.log("New project proposal event:", event);
+            const newRequest = JSON.parse(event.data);
+            console.log("New project proposal received via SSE:", newRequest);
+            setNotifications((prev) => [...prev, newRequest]);
+            reconnectAttempts = 0; // Reset on successful message
+          } catch (err) {
+            console.error("Failed to parse SSE data:", err);
+          }
+        });
+
+        eventSource.onopen = () => {
+          console.log("SSE connection opened");
+          reconnectAttempts = 0; // Reset on successful connection
+        };
+
+        eventSource.onerror = (err) => {
+          console.error("SSE connection error:", err);
+          
+          // Only reconnect if we haven't exceeded max attempts
+          if (reconnectAttempts < maxReconnectAttempts && eventSource?.readyState === EventSource.CLOSED) {
+            reconnectAttempts++;
+            console.log(`Attempting to reconnect SSE (attempt ${reconnectAttempts}/${maxReconnectAttempts})...`);
+            
+            if (eventSource) {
+              eventSource.close();
+            }
+            
+            reconnectTimeout = setTimeout(() => {
+              connect();
+            }, reconnectDelay * reconnectAttempts); // Exponential backoff
+          } else if (reconnectAttempts >= maxReconnectAttempts) {
+            console.error("Max SSE reconnection attempts reached. Please refresh the page.");
+            if (eventSource) {
+              eventSource.close();
+            }
+          }
+        };
+      } catch (error) {
+        console.error("Error creating SSE connection:", error);
+      }
     };
+
+    connect();
 
     return () => {
-      eventSource.close();
+      if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+      }
+      if (eventSource) {
+        eventSource.close();
+      }
     };
-  }, []);
+  }, [isAuthenticated, isAdmin]);
 
   const getStatusBadge = (status: string) => {
     switch (status?.toLowerCase()) {
