@@ -60,7 +60,20 @@ const SignIn = () => {
         if (role === "Investor") {
           redirectPath = "/dashboard";
         } else if (role === "Company") {
-          redirectPath = "/company-dashboard";
+          // Check company status and redirect accordingly
+          try {
+            const profileResponse = await apiClient.get("/companies/me/profile");
+            const companyStatus = profileResponse.data?.data?.profile?.status;
+            if (companyStatus === "APPROVED") {
+              // Company approved but needs step 2 verification
+              redirectPath = "/company-verification";
+            } else {
+              redirectPath = "/company-dashboard";
+            }
+          } catch (error) {
+            // If profile fetch fails, go to dashboard anyway
+            redirectPath = "/company-dashboard";
+          }
         } else if (role === "Admin") {
           redirectPath = "/admin-dashboard";
         }

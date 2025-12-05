@@ -140,6 +140,16 @@ const CompanyDashboard = () => {
   useEffect(() => {
     const fetchDashboard = async () => {
       try {
+        // First check company profile status
+        const profileResponse = await apiClient.get<ResponsePayload>("/companies/me/profile");
+        const companyStatus = profileResponse.data?.data?.profile?.status;
+        
+        if (companyStatus === "APPROVED") {
+          // Redirect to verification page
+          navigate("/company-verification");
+          return;
+        }
+        
         const response = await apiClient.get<ResponsePayload>("/companies/me/dashboard");
         if (response.data.status === 200) {
           setDashboardData(response.data.data.dashboard);
@@ -152,7 +162,7 @@ const CompanyDashboard = () => {
     };
 
     fetchDashboard();
-  }, []);
+  }, [navigate]);
 
   useEffect(() => {
     const fetchInvestors = async () => {

@@ -23,6 +23,7 @@ import FAQ from "./pages/FAQ";
 import HowItWorks from "./pages/HowItWorks";
 import NotFound from "./pages/NotFound";
 import ResetPassword from "./pages/ResetPassword";
+import CompanyVerification from "./pages/CompanyVerification";
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -37,6 +38,7 @@ const App = () => (
           <Route path="/investments/:id" element={<InvestmentDetail />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/company-dashboard" element={<CompanyDashboard />} />
+          <Route path="/company-verification" element={<CompanyVerification />} />
           <Route path="/admin-dashboard" element={<AdminDashboard />} />
           <Route path="/investor-profile/:id" element={<InvestorProfile />} />
           <Route path="/compare-investors/:id" element={<CompareInvestors />} />
