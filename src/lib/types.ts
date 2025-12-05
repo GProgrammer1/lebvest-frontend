@@ -143,21 +143,24 @@ export interface FilterOptions {
   maxAmount?: number;
 }
 
-// export interface AdminNotification {
-//   type: AdminNotificationType;
-//   id: number;
-//   message: string;
-//   createdAt: Date;
-//   admin: number;
-//   isRead: boolean;
-//   isAccepted: Boolean;
-//   title: string;
-// }
+export interface AdminNotification {
+  type: AdminNotificationType;
+  id: number;
+  message: string;
+  createdAt: Date | string;
+  adminId: number;
+  isRead: boolean;
+  isAccepted: Boolean | null;
+  title: string;
+  reqId?: number;
+  documentUrls?: string[];
+}
 
 export type AdminNotificationType =
-| "Signup Request"
-| "Project Proposal"
-| "App Stats Update"
+  | "SIGNUP_REQUEST"
+  | "PROJECT_PROPOSAL"
+  | "VERIFICATION_REQUEST"
+  | "APP_STAT_UPDATE"
 
 
 export interface CompanyProfile {

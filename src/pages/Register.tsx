@@ -47,11 +47,13 @@ type InvestorFormData = {
 
 type CompanyFormData = {
   companyName: string;
-  description: string;
   sector: string;
-  // teamSize: string;
-  location: string;
+  customSector?: string;
   foundedYear: number;
+  governorate: string;
+  city: string;
+  phoneNumber: string;
+  website: string;
 };
 
 const Register = () => {
@@ -79,10 +81,13 @@ const Register = () => {
 
   const [companyData, setCompanyData] = useState<CompanyFormData>({
     companyName: "",
-    description: "",
     sector: "Technology",
+    customSector: "",
     foundedYear: new Date().getFullYear(),
-    location: "",
+    governorate: "",
+    city: "",
+    phoneNumber: "",
+    website: "",
   });
   const [passwordStrength, setPasswordStrength] = useState({
     length: false,
@@ -201,6 +206,31 @@ const Register = () => {
       return;
     }
     if (role === "company" && currentStep === 2) {
+      // Validate company form fields before proceeding
+      if (
+        !companyData.companyName ||
+        !companyData.sector ||
+        !companyData.governorate ||
+        !companyData.city ||
+        !companyData.phoneNumber ||
+        !companyData.website
+      ) {
+        toast({
+          title: "Missing Information",
+          description: "Please fill in all required fields.",
+          variant: "error",
+        });
+        return;
+      }
+      // Validate custom sector if "Other" is selected
+      if (companyData.sector === "Other" && !companyData.customSector?.trim()) {
+        toast({
+          title: "Missing Information",
+          description: "Please specify your sector when selecting 'Other'.",
+          variant: "error",
+        });
+        return;
+      }
       setCurrentStep(3);
       return;
     }
@@ -214,58 +244,45 @@ const Register = () => {
       switch (role) {
         case "investor":
           let response = await handleInvestorSignup();
-          console.log("Investor registration response:", response);
-          if (response && response.status === 201) {
+          if (response.status === 201) {
             const { token } = response.data;
-            console.log(
-              "Token received:",
-              token ? "Token present" : "Token missing"
-            );
-            if (token) {
-              localStorage.setItem("jwt", token);
-              localStorage.setItem("authToken", token);
-              localStorage.setItem("role", "Investor");
-              console.log("Token saved to localStorage");
-              toast({
-                title: "Success!",
-                description: "Your account has been created.",
-                variant: "success",
-              });
-            } else {
-              console.error("No token in response data");
-              toast({
-                title: "Registration Error",
-                description: "Token not received. Please try again.",
-                variant: "error",
-              });
-            }
-          } else {
-            console.error("Registration failed:", response);
+            localStorage.setItem("authToken", token);
             toast({
-              title: "Registration Failed",
-              description:
-                response?.message || "An error occurred during registration",
-              variant: "error",
+              title: "Success!",
+              description: "Your account has been created.",
+              variant: "success",
             });
           }
           navigate("/dashboard");
           break;
         case "company":
+          // Validate that required files are uploaded
+          const registrationCertificate =
+            companyFiles["doc-registration-certificate"];
+          const representativeId = companyFiles["doc-rep-id"];
+
+          if (!registrationCertificate || !representativeId) {
+            toast({
+              title: "Missing Documents",
+              description:
+                "Please upload both the Company Registration Certificate and Representative ID.",
+              variant: "error",
+            });
+            setIsLoading(false);
+            return;
+          }
+
           let companyResponse = await handleCompanySignup();
           console.log("Company res: ", companyResponse);
 
           if (companyResponse && companyResponse.status === 201) {
-            const { token } = companyResponse.data;
-            localStorage.setItem("jwt", token);
-            localStorage.setItem("authToken", token);
-            localStorage.setItem("role", "Company");
             toast({
-              title: "Success!",
+              title: "Signup Request Submitted!",
               description:
-                "Your company account has been created successfully!",
+                "Your company signup request has been submitted. Please wait for admin approval. You will receive an email once your request is reviewed.",
               variant: "success",
             });
-            navigate("/company-dashboard");
+            navigate("/signin");
           }
           break;
 
@@ -327,30 +344,42 @@ const Register = () => {
 
   const handleCompanySignup = async () => {
     try {
+      // Create FormData for multipart/form-data request
       const formData = new FormData();
-
-      formData.append("companyName", companyData.companyName);
-      formData.append("description", companyData.description);
-      formData.append("sector", companyData.sector.toUpperCase());
-      // formData.append("teamSize", companyData.teamSize);
-      formData.append("foundedYear", String(companyData.foundedYear));
-      formData.append("location", companyData.location);
-      formData.append("email", email);
       formData.append("name", fullName);
+      formData.append("email", email);
       formData.append("password", password);
+      formData.append("companyName", companyData.companyName);
+      formData.append("sector", companyData.sector);
+      if (companyData.sector === "Other" && companyData.customSector) {
+        formData.append("customSector", companyData.customSector);
+      }
+      formData.append("foundedYear", companyData.foundedYear.toString());
+      formData.append("governorate", companyData.governorate);
+      formData.append("city", companyData.city);
+      formData.append("phoneNumber", companyData.phoneNumber);
+      formData.append("website", companyData.website);
 
-      console.log(
-        "Company data entries for formdata: ",
-        formData.get("sector")
-      );
+      // Append files if they exist
+      const registrationCertificate =
+        companyFiles["doc-registration-certificate"];
+      const representativeId = companyFiles["doc-rep-id"];
 
-      // Append files
-      Object.entries(companyFiles).forEach(([field, file]) => {
-        if (file) {
-          formData.append("documents", file); // backend should receive it as a Multipart[] or List<Multipart>
-        }
+      if (registrationCertificate) {
+        formData.append("documents", registrationCertificate);
+      }
+      if (representativeId) {
+        formData.append("documents", representativeId);
+      }
+
+      console.log("Company registration data: ", {
+        name: fullName,
+        email,
+        companyName: companyData.companyName,
+        sector: companyData.sector,
+        documentsCount:
+          (registrationCertificate ? 1 : 0) + (representativeId ? 1 : 0),
       });
-      console.log("Company files are: ", companyFiles);
 
       const axiosResponse = await apiClient.post<ResponsePayload>(
         "/auth/company/register",
@@ -365,8 +394,8 @@ const Register = () => {
       console.log("Response of company signup: ", response);
       return response;
     } catch (err: any) {
-      console.error("Error signing up company: ", err.status);
-      if (err.status === 409) {
+      console.error("Error signing up company: ", err);
+      if (err.response?.status === 409) {
         toast({
           title: "Company already registered",
           description: err.response?.data?.message,
@@ -381,7 +410,6 @@ const Register = () => {
           variant: "error",
         });
       }
-      throw err; // Re-throw to prevent navigation on error
     }
   };
 
@@ -596,28 +624,21 @@ const Register = () => {
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="description">Company Description</Label>
-        <Input
-          id="description"
-          placeholder="Brief description of your company..."
-          value={companyData.description}
-          onChange={(e) =>
-            setCompanyData({ ...companyData, description: e.target.value })
-          }
-          required
-        />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="industrySector">Industry Sector</Label>
+        <Label htmlFor="industrySector">Sector</Label>
         <Select
           value={companyData.sector}
           onValueChange={(value) => {
-            setCompanyData({ ...companyData, sector: value });
+            setCompanyData({ 
+              ...companyData, 
+              sector: value,
+              customSector: value !== "Other" ? "" : companyData.customSector
+            });
             console.log("Company :", companyData);
           }}
+          required
         >
           <SelectTrigger>
-            <SelectValue placeholder="Select industry sector" />
+            <SelectValue placeholder="Select sector" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="Technology">Technology</SelectItem>
@@ -627,18 +648,28 @@ const Register = () => {
             <SelectItem value="Agriculture">Agriculture</SelectItem>
             <SelectItem value="Education">Education</SelectItem>
             <SelectItem value="Tourism">Tourism</SelectItem>
-
-            {/* <SelectItem value="RETAIL">RETAIL</SelectItem>
-            <SelectItem value="Technology">Technology</SelectItem>
-            <SelectItem value="Healthcare">Healthcare</SelectItem>
-            <SelectItem value="Finance">Finance</SelectItem>
-            <SelectItem value="Real_Estate">Real Estate</SelectItem>
-            <SelectItem value="Agriculture">Agriculture</SelectItem>
-            <SelectItem value="Education">Education</SelectItem>
-            <SelectItem value="Tourism">Tourism</SelectItem>
-            <SelectItem value="Retail">Retail</SelectItem> */}
+            <SelectItem value="Retail">Retail</SelectItem>
+            <SelectItem value="Energy">Energy</SelectItem>
+            <SelectItem value="Transportation">Transportation</SelectItem>
+            <SelectItem value="Hospitality">Hospitality</SelectItem>
+            <SelectItem value="Entertainment">Entertainment</SelectItem>
+            <SelectItem value="Manufacturing">Manufacturing</SelectItem>
+            <SelectItem value="Other">Other</SelectItem>
           </SelectContent>
         </Select>
+        {companyData.sector === "Other" && (
+          <div className="mt-2">
+            <Input
+              id="customSector"
+              placeholder="Please specify your sector"
+              value={companyData.customSector || ""}
+              onChange={(e) =>
+                setCompanyData({ ...companyData, customSector: e.target.value })
+              }
+              required
+            />
+          </div>
+        )}
       </div>
       <div className="space-y-2">
         <Label htmlFor="foundedYear">Founded Year</Label>
@@ -647,6 +678,7 @@ const Register = () => {
           onValueChange={(value) =>
             setCompanyData({ ...companyData, foundedYear: parseInt(value) })
           }
+          required
         >
           <SelectTrigger>
             <SelectValue placeholder="Select founded year" />
@@ -664,13 +696,63 @@ const Register = () => {
         </Select>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="location">Company location</Label>
+        <Label htmlFor="governorate">Governorate</Label>
+        <Select
+          value={companyData.governorate}
+          onValueChange={(value) =>
+            setCompanyData({ ...companyData, governorate: value })
+          }
+          required
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Select governorate" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="Beirut">Beirut</SelectItem>
+            <SelectItem value="Mount Lebanon">Mount Lebanon</SelectItem>
+            <SelectItem value="North">North</SelectItem>
+            <SelectItem value="South">South</SelectItem>
+            <SelectItem value="Bekaa">Bekaa</SelectItem>
+            <SelectItem value="Nabatieh">Nabatieh</SelectItem>
+            <SelectItem value="Baalbek Hermel">Baalbek Hermel</SelectItem>
+            <SelectItem value="Akkar">Akkar</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="city">City / Area</Label>
         <Input
-          id="location"
-          placeholder="Location of your company"
-          value={companyData.location}
+          id="city"
+          placeholder="Enter city or area"
+          value={companyData.city}
           onChange={(e) =>
-            setCompanyData({ ...companyData, location: e.target.value })
+            setCompanyData({ ...companyData, city: e.target.value })
+          }
+          required
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="phoneNumber">Phone Number</Label>
+        <Input
+          id="phoneNumber"
+          type="tel"
+          placeholder="+961 1 234 567"
+          value={companyData.phoneNumber}
+          onChange={(e) =>
+            setCompanyData({ ...companyData, phoneNumber: e.target.value })
+          }
+          required
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="website">Company Website or Main Social Link</Label>
+        <Input
+          id="website"
+          type="url"
+          placeholder="https://www.example.com"
+          value={companyData.website}
+          onChange={(e) =>
+            setCompanyData({ ...companyData, website: e.target.value })
           }
           required
         />
@@ -680,51 +762,21 @@ const Register = () => {
   // Step 3: document uploads
   const renderCompanyStep2 = () => (
     <div className="space-y-4">
-      <h3 className="text-lg font-medium">Upload Company Documents</h3>
+      <h3 className="text-lg font-medium">Upload Required Documents</h3>
       <p className="text-sm text-gray-500">
-        Please upload each required file for admin verification.
+        Please upload the required files for admin verification.
       </p>
 
       {[
         {
-          id: "doc-incorporation",
-          label: "Certificate of Incorporation",
-          accept: ".pdf,.jpg,.png",
-        },
-        {
-          id: "doc-bylaws",
-          label: "Articles of Association (Bylaws)",
-          accept: ".pdf,.jpg,.png",
-        },
-        {
-          id: "doc-tax",
-          label: "Tax Identification Certificate",
-          accept: ".pdf,.jpg,.png",
-        },
-        {
-          id: "doc-address",
-          label: "Proof of Address",
+          id: "doc-registration-certificate",
+          label: "Company Registration Certificate",
           accept: ".pdf,.jpg,.png",
         },
         {
           id: "doc-rep-id",
-          label: "Representative Photo ID",
+          label: "Representative ID",
           accept: ".pdf,.jpg,.png",
-        },
-        {
-          id: "doc-financials",
-          label: "Recent Financial Statement",
-          accept: ".pdf,.xls,.xlsx,.csv",
-        },
-        {
-          id: "doc-pitch",
-          label: "Pitch Deck (optional)",
-          accept: ".pdf,.ppt,.pptx",
-        },
-        {
-          id: "logo",
-          label: "Company Logo (optional)",
-          accept: ".pdf,.jpg,.png,.svg",
         },
       ].map(({ id, label, accept }) => (
         <div
@@ -740,7 +792,7 @@ const Register = () => {
             type="file"
             accept={accept}
             className="sr-only"
-            key={id}
+            key={companyFiles[id]?.name || id}
             onChange={(e) => {
               const file = e.target.files?.[0] || null;
               setCompanyFiles((prev) => ({ ...prev, [id]: file }));
