@@ -153,6 +153,7 @@ export interface AdminNotification {
   isAccepted: Boolean | null;
   title: string;
   reqId?: number;
+  companyId?: number;
   documentUrls?: string[];
 }
 

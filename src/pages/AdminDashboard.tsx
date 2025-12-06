@@ -342,6 +342,7 @@ const AdminDashboard = () => {
     isSuccess,
     isError,
     isLoading,
+    refetch: refetchNotifications,
   } = useQuery({
     queryKey: ["adminNotifications"],
     queryFn: async () => {
@@ -391,6 +392,87 @@ const AdminDashboard = () => {
       });
     }
   };
+  const handleApproveVerification = async (companyId: number, notificationId: number) => {
+    try {
+      const response = await apiClient.post(
+        `/admin/approve-verification/${companyId}`,
+        {},
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      toast({
+        description: "Company verification approved. Company can now post projects.",
+        title: "Success!",
+        variant: "success",
+      });
+      
+      // Update notification state immediately
+      setNotifications((prev) =>
+        prev.map((noti) =>
+          noti.id === notificationId ? { ...noti, isAccepted: true } : noti
+        )
+      );
+      
+      // Refetch notifications to get updated data from server (without page reload)
+      if (refetchNotifications) {
+        refetchNotifications();
+      }
+    } catch (ex: any) {
+      console.error("Error approving verification:", ex.message);
+      toast({
+        description: ex.response?.data?.message || "Something went wrong",
+        title: "Error!",
+        variant: "error",
+      });
+    }
+  };
+
+  const handleRejectVerification = async (companyId: number, notificationId: number, reason: string) => {
+    try {
+      const response = await apiClient.post(
+        `/admin/reject-verification/${companyId}`,
+        { reason },
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      toast({
+        description: "Company verification rejected. Company can resubmit documents.",
+        title: "Success!",
+        variant: "success",
+      });
+      
+      // Update notification state immediately
+      setNotifications((prev) =>
+        prev.map((noti) =>
+          noti.id === notificationId ? { ...noti, isAccepted: false } : noti
+        )
+      );
+      
+      setRejectingId(null);
+      setRejectionReason("");
+      
+      // Refetch notifications to get updated data from server (without page reload)
+      if (refetchNotifications) {
+        refetchNotifications();
+      }
+    } catch (ex: any) {
+      console.error("Error rejecting verification:", ex.message);
+      toast({
+        description: ex.response?.data?.message || "Something went wrong",
+        title: "Error!",
+        variant: "error",
+      });
+    }
+  };
+
   const handleReject = async (
     reqId: number,
     notificationId: number,
@@ -1591,6 +1673,108 @@ const AdminDashboard = () => {
                                     <Ban className="h-4 w-4" />
                                     <span className="text-sm font-medium">
                                       Rejected
+                                    </span>
+                                  </div>
+                                ))}
+                              
+                              {notification.type === "VERIFICATION_REQUEST" &&
+                                (notification.isAccepted === null ? (
+                                  <div className="flex flex-col items-end gap-2 w-full">
+                                    {/* Action Buttons */}
+                                    <div className="flex gap-2">
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        className="bg-green-500 hover:bg-green-600 text-white"
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          if (notification.companyId) {
+                                            handleApproveVerification(
+                                              notification.companyId,
+                                              notification.id
+                                            );
+                                          } else {
+                                            toast({
+                                              description: "Company ID not found in notification",
+                                              title: "Error!",
+                                              variant: "error",
+                                            });
+                                          }
+                                        }}
+                                      >
+                                        <CheckCircle className="mr-1 h-4 w-4" />{" "}
+                                        Approve Verification
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="destructive"
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          handleRejectClick(notification.id);
+                                        }}
+                                      >
+                                        <AlertCircle className="mr-1 h-4 w-4" />{" "}
+                                        Reject
+                                      </Button>
+                                    </div>
+
+                                    {/* Rejection Reason Textbox */}
+                                    {rejectingId === notification.id && (
+                                      <div className="w-full max-w-md mt-2">
+                                        <textarea
+                                          className="w-full border rounded p-2 text-sm"
+                                          rows={3}
+                                          placeholder="Provide reason for rejection..."
+                                          value={rejectionReason}
+                                          onChange={(e) =>
+                                            setRejectionReason(e.target.value)
+                                          }
+                                        />
+                                        <div className="flex justify-end mt-2">
+                                          <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="destructive"
+                                            disabled={!rejectionReason.trim() || !notification.companyId}
+                                            onClick={(e) => {
+                                              e.preventDefault();
+                                              e.stopPropagation();
+                                              if (notification.companyId) {
+                                                handleRejectVerification(
+                                                  notification.companyId,
+                                                  notification.id,
+                                                  rejectionReason
+                                                );
+                                              } else {
+                                                toast({
+                                                  description: "Company ID not found in notification",
+                                                  title: "Error!",
+                                                  variant: "error",
+                                                });
+                                              }
+                                            }}
+                                          >
+                                            Submit Rejection
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : notification.isAccepted ? (
+                                  <div className="flex items-center gap-1 text-green-600">
+                                    <CheckCircle className="h-4 w-4" />
+                                    <span className="text-sm font-medium">
+                                      Verification Approved
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-1 text-red-600">
+                                    <Ban className="h-4 w-4" />
+                                    <span className="text-sm font-medium">
+                                      Verification Rejected
                                     </span>
                                   </div>
                                 ))}
