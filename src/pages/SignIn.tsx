@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,8 +25,27 @@ const SignIn = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedRole, setSelectedRole] = useState("Investor");
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
+  const redirectPath = searchParams.get("redirect");
 
   const navigate = useNavigate();
+  
+  // Check if user is already authenticated
+  useEffect(() => {
+    const token = localStorage.getItem("authToken");
+    const role = localStorage.getItem("role");
+    
+    if (token && redirectPath) {
+      // If authenticated and there's a redirect, check if role matches
+      if (redirectPath.includes("admin") && role === "Admin") {
+        navigate(redirectPath);
+      } else if (redirectPath.includes("company") && role === "Company") {
+        navigate(redirectPath);
+      } else if (redirectPath.includes("dashboard") && role === "Investor") {
+        navigate(redirectPath);
+      }
+    }
+  }, [redirectPath, navigate]);
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
@@ -54,11 +73,14 @@ const SignIn = () => {
           variant: "success",
         });
 
+        // Check if there's a redirect parameter from URL (e.g., from email link)
+        const urlRedirect = searchParams.get("redirect");
+        
         // Redirect based on role from backend response (not UI selection)
         let redirectPath = "/dashboard"; // default
 
         if (role === "Investor") {
-          redirectPath = "/dashboard";
+          redirectPath = urlRedirect && urlRedirect.includes("dashboard") ? urlRedirect : "/dashboard";
         } else if (role === "Company") {
           // Check company status and redirect accordingly
           try {
@@ -68,14 +90,15 @@ const SignIn = () => {
               // Company approved but needs step 2 verification
               redirectPath = "/company-verification";
             } else {
-              redirectPath = "/company-dashboard";
+              redirectPath = urlRedirect && urlRedirect.includes("company") ? urlRedirect : "/company-dashboard";
             }
           } catch (error) {
             // If profile fetch fails, go to dashboard anyway
-            redirectPath = "/company-dashboard";
+            redirectPath = urlRedirect && urlRedirect.includes("company") ? urlRedirect : "/company-dashboard";
           }
         } else if (role === "Admin") {
-          redirectPath = "/admin-dashboard";
+          // Use redirect parameter if provided and it's an admin path, otherwise default to admin-dashboard
+          redirectPath = urlRedirect && urlRedirect.includes("admin") ? urlRedirect : "/admin-dashboard";
         }
 
         navigate(redirectPath);
@@ -115,7 +138,8 @@ const SignIn = () => {
           </CardHeader>
           <CardContent>
             <Tabs
-              defaultValue="investor"
+              defaultValue="Investor"
+              value={selectedRole}
               onValueChange={setSelectedRole}
               className="w-full mb-6"
             >
