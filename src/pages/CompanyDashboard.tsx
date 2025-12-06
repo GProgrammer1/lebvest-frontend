@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -28,7 +29,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Search, Users, Filter, BellIcon } from "lucide-react";
+import { Search, Users, Filter } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Link } from "react-router-dom";
@@ -74,53 +75,6 @@ const mockInvestors = [
   },
 ];
 
-// Mock notifications data
-const mockNotifications = [
-  {
-    id: 1,
-    type: "investor_inquiry",
-    title: "New Investor Inquiry",
-    message: "John Smith has expressed interest in your Tech Hub project.",
-    date: "2025-05-15T10:30:00",
-    read: false,
-    investorId: "inv1",
-  },
-  {
-    id: 2,
-    type: "funding_milestone",
-    title: "Funding Milestone Reached",
-    message: "Your Cedar Heights project has reached 50% of its funding goal!",
-    date: "2025-05-14T15:45:00",
-    read: true,
-  },
-  {
-    id: 3,
-    type: "admin_message",
-    title: "Admin Message",
-    message: "Your project submission has been approved.",
-    date: "2025-05-12T09:15:00",
-    read: false,
-  },
-  {
-    id: 4,
-    type: "investor_request",
-    title: "Investment Request",
-    message:
-      "Sarah Johnson would like to invest $50,000 in your Tech Hub project.",
-    date: "2025-05-10T14:20:00",
-    read: false,
-    investorId: "inv2",
-  },
-  {
-    id: 5,
-    type: "admin_message",
-    title: "Important Platform Update",
-    message:
-      "LebVest has updated its terms of service. Please review the changes.",
-    date: "2025-05-08T11:00:00",
-    read: true,
-  },
-];
 
 const CompanyDashboard = () => {
   const navigate = useNavigate();
@@ -128,7 +82,6 @@ const CompanyDashboard = () => {
   const [riskFilter, setRiskFilter] = useState("");
   const [minPortfolio, setMinPortfolio] = useState("");
   const [sectorFilter, setSectorFilter] = useState("");
-  const [notifications, setNotifications] = useState(mockNotifications);
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [investors, setInvestors] = useState<any[]>([]);
@@ -137,6 +90,12 @@ const CompanyDashboard = () => {
   const [investorsTotalPages, setInvestorsTotalPages] = useState(0);
   const [investorsTotalElements, setInvestorsTotalElements] = useState(0);
   const [needsVerification, setNeedsVerification] = useState(false);
+  const [investmentRequests, setInvestmentRequests] = useState<any[]>([]);
+  const [investmentRequestsLoading, setInvestmentRequestsLoading] = useState(false);
+  const [investmentRequestsFilter, setInvestmentRequestsFilter] = useState("PENDING");
+  const [rejectingRequestId, setRejectingRequestId] = useState<number | null>(null);
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [acceptingRequestId, setAcceptingRequestId] = useState<number | null>(null);
 
   useEffect(() => {
     const fetchDashboard = async () => {
@@ -212,19 +171,81 @@ const CompanyDashboard = () => {
     }).format(amount);
   };
 
-  const markAsRead = (notificationId: number) => {
-    setNotifications(
-      notifications.map((notification) =>
-        notification.id === notificationId
-          ? { ...notification, read: true }
-          : notification
-      )
-    );
+
+  const investmentRequestsCount = investmentRequests.filter(
+    (req) => req.status === "PENDING"
+  ).length;
+
+  // Fetch investment requests
+  useEffect(() => {
+    const fetchInvestmentRequests = async () => {
+      setInvestmentRequestsLoading(true);
+      try {
+        const response = await apiClient.get<ResponsePayload>(
+          `/companies/me/investment-requests?status=${investmentRequestsFilter}`
+        );
+        if (response.data.status === 200) {
+          setInvestmentRequests(response.data.data.requests || []);
+        }
+      } catch (error) {
+        console.error("Error fetching investment requests:", error);
+        setInvestmentRequests([]);
+      } finally {
+        setInvestmentRequestsLoading(false);
+      }
+    };
+
+    fetchInvestmentRequests();
+  }, [investmentRequestsFilter]);
+
+  const handleAcceptRequest = async (requestId: number) => {
+    try {
+      const response = await apiClient.post<ResponsePayload>(
+        `/companies/me/investment-requests/${requestId}/accept`,
+        {}
+      );
+      if (response.data.status === 200) {
+        // Refresh requests
+        const refreshResponse = await apiClient.get<ResponsePayload>(
+          `/companies/me/investment-requests?status=${investmentRequestsFilter}`
+        );
+        if (refreshResponse.data.status === 200) {
+          setInvestmentRequests(refreshResponse.data.data.requests || []);
+        }
+        setAcceptingRequestId(null);
+      }
+    } catch (error: any) {
+      console.error("Error accepting request:", error);
+      alert(error.response?.data?.message || "Failed to accept request");
+    }
   };
 
-  const unreadCount = notifications.filter(
-    (notification) => !notification.read
-  ).length;
+  const handleRejectRequest = async (requestId: number) => {
+    if (!rejectionReason.trim()) {
+      alert("Please provide a reason for rejection");
+      return;
+    }
+    try {
+      const response = await apiClient.post<ResponsePayload>(
+        `/companies/me/investment-requests/${requestId}/reject`,
+        { reason: rejectionReason }
+      );
+      if (response.data.status === 200) {
+        // Refresh requests
+        const refreshResponse = await apiClient.get<ResponsePayload>(
+          `/companies/me/investment-requests?status=${investmentRequestsFilter}`
+        );
+        if (refreshResponse.data.status === 200) {
+          setInvestmentRequests(refreshResponse.data.data.requests || []);
+        }
+        setRejectingRequestId(null);
+        setRejectionReason("");
+      }
+    } catch (error: any) {
+      console.error("Error rejecting request:", error);
+      alert(error.response?.data?.message || "Failed to reject request");
+    }
+  };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -288,15 +309,15 @@ const CompanyDashboard = () => {
             <TabsList className="mb-6">
               <TabsTrigger value="investors">Find Investors</TabsTrigger>
               <TabsTrigger value="projects">My Projects</TabsTrigger>
-              <TabsTrigger value="analytics">Analytics</TabsTrigger>
-              <TabsTrigger value="notifications" className="relative">
-                Notifications
-                {unreadCount > 0 && (
-                  <Badge className="ml-2 bg-red-500 hover:bg-red-600 text-white">
-                    {unreadCount}
+              <TabsTrigger value="investment-requests" className="relative">
+                Investment Requests
+                {investmentRequestsCount > 0 && (
+                  <Badge className="ml-2 bg-blue-500 hover:bg-blue-600 text-white">
+                    {investmentRequestsCount}
                   </Badge>
                 )}
               </TabsTrigger>
+              <TabsTrigger value="analytics">Analytics</TabsTrigger>
             </TabsList>
 
             <TabsContent value="investors">
@@ -582,6 +603,196 @@ const CompanyDashboard = () => {
               </Card>
             </TabsContent>
 
+            <TabsContent value="investment-requests">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-xl">Investment Requests</CardTitle>
+                  <CardDescription>
+                    Review and manage investment requests from investors
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="mb-4">
+                    <Select
+                      value={investmentRequestsFilter}
+                      onValueChange={setInvestmentRequestsFilter}
+                    >
+                      <SelectTrigger className="w-[200px]">
+                        <SelectValue placeholder="Filter by status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ALL">All Requests</SelectItem>
+                        <SelectItem value="PENDING">Pending</SelectItem>
+                        <SelectItem value="ACCEPTED">Accepted</SelectItem>
+                        <SelectItem value="REJECTED">Rejected</SelectItem>
+                        <SelectItem value="PAID">Paid</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {investmentRequestsLoading ? (
+                    <div className="text-center py-12">
+                      <div>Loading investment requests...</div>
+                    </div>
+                  ) : investmentRequests.length > 0 ? (
+                    <div className="space-y-4">
+                      {investmentRequests.map((request) => (
+                        <Card key={request.id} className="border-l-4 border-l-blue-500">
+                          <CardContent className="p-6">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-4 mb-4">
+                                  {request.investorProfileImageUrl && (
+                                    <img
+                                      src={request.investorProfileImageUrl.startsWith('http') 
+                                        ? request.investorProfileImageUrl 
+                                        : `http://localhost:8080/api/files/${request.investorProfileImageUrl}`}
+                                      alt={request.investorName}
+                                      className="w-12 h-12 rounded-full object-cover"
+                                    />
+                                  )}
+                                  <div>
+                                    <h3 className="text-lg font-semibold">
+                                      {request.investorName}
+                                    </h3>
+                                    <p className="text-sm text-gray-500">
+                                      {request.investorEmail}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="mb-4">
+                                  <p className="text-sm text-gray-600">
+                                    <strong>Project:</strong> {request.investmentTitle}
+                                  </p>
+                                  <p className="text-sm text-gray-600 mt-1">
+                                    <strong>Amount:</strong> {formatCurrency(Number(request.amount))}
+                                  </p>
+                                  {request.message && (
+                                    <p className="text-sm text-gray-600 mt-2">
+                                      <strong>Message:</strong> {request.message}
+                                    </p>
+                                  )}
+                                  <p className="text-sm text-gray-500 mt-2">
+                                    Requested: {formatDate(request.createdAt)}
+                                  </p>
+                                  {request.status === "REJECTED" && request.rejectionReason && (
+                                    <p className="text-sm text-red-600 mt-2">
+                                      <strong>Rejection Reason:</strong> {request.rejectionReason}
+                                    </p>
+                                  )}
+                                </div>
+                                <Badge
+                                  className={
+                                    request.status === "PENDING"
+                                      ? "bg-yellow-500"
+                                      : request.status === "ACCEPTED"
+                                      ? "bg-green-500"
+                                      : request.status === "REJECTED"
+                                      ? "bg-red-500"
+                                      : "bg-blue-500"
+                                  }
+                                >
+                                  {request.status}
+                                </Badge>
+                              </div>
+                              <div className="flex flex-col gap-2 ml-4">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  asChild
+                                >
+                                  <Link to={`/investor-profile/${request.investorId}`}>
+                                    View Profile
+                                  </Link>
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  disabled
+                                  title="Chat feature coming soon"
+                                >
+                                  Chat
+                                </Button>
+                                {request.status === "PENDING" && (
+                                  <>
+                                    <Button
+                                      variant="default"
+                                      size="sm"
+                                      className="bg-green-600 hover:bg-green-700"
+                                      onClick={() => {
+                                        setAcceptingRequestId(request.id);
+                                        handleAcceptRequest(request.id);
+                                      }}
+                                      disabled={acceptingRequestId === request.id}
+                                    >
+                                      {acceptingRequestId === request.id ? "Accepting..." : "Accept"}
+                                    </Button>
+                                    <Button
+                                      variant="destructive"
+                                      size="sm"
+                                      onClick={() => setRejectingRequestId(request.id)}
+                                    >
+                                      Reject
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+
+                            {rejectingRequestId === request.id && (
+                              <div className="mt-4 p-4 bg-gray-50 rounded-lg border">
+                                <label className="block text-sm font-medium mb-2">
+                                  Rejection Reason <span className="text-red-500">*</span>
+                                </label>
+                                <textarea
+                                  className="w-full p-2 border rounded-md mb-2"
+                                  rows={3}
+                                  placeholder="Please provide a reason for rejection..."
+                                  value={rejectionReason}
+                                  onChange={(e) => setRejectionReason(e.target.value)}
+                                />
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleRejectRequest(request.id)}
+                                    disabled={!rejectionReason.trim()}
+                                  >
+                                    Submit Rejection
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      setRejectingRequestId(null);
+                                      setRejectionReason("");
+                                    }}
+                                  >
+                                    Cancel
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12">
+                      <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                        <Users className="h-8 w-8 text-gray-400" />
+                      </div>
+                      <h3 className="text-lg font-medium text-gray-900">
+                        No investment requests
+                      </h3>
+                      <p className="mt-1 text-gray-500 max-w-sm mx-auto">
+                        Investment requests from investors will appear here.
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
             <TabsContent value="analytics">
               <Card>
                 <CardHeader>
@@ -639,240 +850,6 @@ const CompanyDashboard = () => {
                       </div>
                     </CardContent>
                   </Card>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="notifications">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-xl">Notifications</CardTitle>
-                  <CardDescription>
-                    Stay updated on investor inquiries and project updates
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {notifications.length > 0 ? (
-                      notifications.map((notification) => (
-                        <div
-                          key={notification.id}
-                          className={`border rounded-lg p-4 transition-colors ${
-                            notification.read ? "bg-white" : "bg-blue-50"
-                          }`}
-                          onClick={() => markAsRead(notification.id)}
-                        >
-                          <div className="flex justify-between items-start">
-                            {/* ICON + TITLE */}
-                            <div className="flex items-center space-x-3">
-                              {/* 1) New Opportunity */}
-                              {notification.type === "new_opportunity" && (
-                                <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                                  <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    className="h-6 w-6 text-blue-600"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                                    />
-                                  </svg>
-                                </div>
-                              )}
-                              {/* 2) Update */}
-                              {notification.type === "update" && (
-                                <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
-                                  <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    className="h-6 w-6 text-green-600"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                                    />
-                                  </svg>
-                                </div>
-                              )}
-                              {/* 3) Threshold */}
-                              {notification.type === "threshold" && (
-                                <div className="h-10 w-10 rounded-full bg-yellow-100 flex items-center justify-center">
-                                  <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    className="h-6 w-6 text-yellow-600"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                                    />
-                                  </svg>
-                                </div>
-                              )}
-                              {/* 4) News */}
-                              {notification.type === "news" && (
-                                <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center">
-                                  <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    className="h-6 w-6 text-purple-600"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M19 21H5a2 2 0 01-2-2V7a2 2 0 012-2h4l2-2h6l2 2h4a2 2 0 012 2v12a2 2 0 01-2 2zM7 10h10M7 14h6"
-                                    />
-                                  </svg>
-                                </div>
-                              )}
-
-                              <h3
-                                className={`text-lg font-medium ${
-                                  notification.read ? "" : "text-lebanese-navy"
-                                }`}
-                              >
-                                {notification.title}
-                                {!notification.read && (
-                                  <span className="ml-2 inline-block w-2 h-2 bg-blue-500 rounded-full"></span>
-                                )}
-                              </h3>
-                            </div>
-
-                            <span className="text-sm text-gray-500">
-                              {formatDate(notification.date)}
-                            </span>
-                          </div>
-
-                          <p className="text-gray-700 mt-1">
-                            {notification.message}
-                          </p>
-
-                          {/* ICON + TITLE */}
-                          <div className="flex items-center space-x-3">
-                            {/* 1) Investor Inquiry */}
-                            {notification.type === "investor_inquiry" && (
-                              <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                                <svg
-                                  xmlns="http://www.w3.org/2000/svg"
-                                  className="h-6 w-6 text-blue-600"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                  stroke="currentColor"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M8 10h.01M12 10h.01M16 10h.01M9 16h6m-6-4h6"
-                                  />
-                                </svg>
-                              </div>
-                            )}
-
-                            {/* 2) Funding Milestone */}
-                            {notification.type === "funding_milestone" && (
-                              <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
-                                <svg
-                                  xmlns="http://www.w3.org/2000/svg"
-                                  className="h-6 w-6 text-green-600"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                  stroke="currentColor"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M11 17l-5-5m0 0l5-5m-5 5h12"
-                                  />
-                                </svg>
-                              </div>
-                            )}
-
-                            {/* 3) Admin Message */}
-                            {notification.type === "admin_message" && (
-                              <div className="h-10 w-10 rounded-full bg-yellow-100 flex items-center justify-center">
-                                <svg
-                                  xmlns="http://www.w3.org/2000/svg"
-                                  className="h-6 w-6 text-yellow-600"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                  stroke="currentColor"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                                  />
-                                </svg>
-                              </div>
-                            )}
-
-                            {/* 4) Investment Request */}
-                            {notification.type === "investor_request" && (
-                              <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center">
-                                <svg
-                                  xmlns="http://www.w3.org/2000/svg"
-                                  className="h-6 w-6 text-purple-600"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                  stroke="currentColor"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M7 8h10M7 12h4m1 8a9 9 0 100-18 9 9 0 000 18z"
-                                  />
-                                </svg>
-                              </div>
-                            )}
-
-                            <h3
-                              className={`text-lg font-medium ${
-                                notification.read ? "" : "text-lebanese-navy"
-                              }`}
-                            >
-                              {notification.title}
-                              {!notification.read && (
-                                <span className="ml-2 inline-block w-2 h-2 bg-blue-500 rounded-full" />
-                              )}
-                            </h3>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="text-center py-12">
-                        <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                          <BellIcon className="h-8 w-8 text-gray-400" />
-                        </div>
-                        <h3 className="text-lg font-medium text-gray-900">
-                          No notifications yet
-                        </h3>
-                        <p className="mt-1 text-gray-500 max-w-sm mx-auto">
-                          You’ll be notified here when there are updates on your
-                          projects or investor inquiries.
-                        </p>
-                      </div>
-                    )}
-                  </div>
                 </CardContent>
               </Card>
             </TabsContent>

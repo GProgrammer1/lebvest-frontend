@@ -197,6 +197,7 @@ const AdminDashboard = () => {
     setRejectingId(null); // hide textarea after submission
     setRejectionReason("");
   };
+
   const [users, setUsers] = useState<any[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [usersPage, setUsersPage] = useState(0);
@@ -221,7 +222,9 @@ const AdminDashboard = () => {
         params.append("page", usersPage.toString());
         params.append("size", "20");
 
-        const response = await apiClient.get<ResponsePayload>(`/admin/users?${params.toString()}`);
+        const response = await apiClient.get<ResponsePayload>(`/admin/users?${params.toString()}`, {
+          timeout: 30000, // 30 seconds for admin users endpoint
+        });
         if (response.data.status === 200) {
           const data = response.data.data;
           setUsers(data.users || []);
@@ -245,7 +248,10 @@ const AdminDashboard = () => {
       setProjectsLoading(true);
       try {
         const params = new URLSearchParams();
-        if (projectStatusFilter !== "All") {
+        if (projectStatusFilter === "All") {
+          // Send "ALL" explicitly to backend to return all statuses
+          params.append("status", "ALL");
+        } else {
           const statusMap: Record<string, string> = {
             "pending_review": "PENDING_REVIEW",
             "active": "APPROVED",
@@ -253,7 +259,6 @@ const AdminDashboard = () => {
           };
           params.append("status", statusMap[projectStatusFilter] || "PENDING_REVIEW");
         }
-        // If "All", don't add status param - backend will return all statuses
         if (projectCategoryFilter !== "All") {
           params.append("category", projectCategoryFilter.toUpperCase().replace(/\s+/g, '_'));
         }
@@ -347,10 +352,19 @@ const AdminDashboard = () => {
     queryKey: ["adminNotifications"],
     queryFn: async () => {
       try {
-        const response = await apiClient.get("/admin/notifications");
+        const response = await apiClient.get("/admin/notifications", {
+          timeout: 30000, // 30 seconds for admin notifications
+        });
         return response.data as ResponsePayload;
-      } catch (err) {
+      } catch (err: any) {
         console.error("Failed to fetch notificaitons: ", err.message);
+        // Return a default response payload to prevent undefined error
+        return {
+          status: 500,
+          message: "Failed to fetch notifications",
+          data: { notifications: [] },
+          timestamp: new Date(),
+        } as ResponsePayload;
       }
     },
   });
@@ -515,11 +529,10 @@ const AdminDashboard = () => {
   };
 
   useEffect(() => {
-    if (isSuccess) {
+    if (isSuccess && payload?.data?.notifications) {
       console.log("Notifi: ", payload.data.notifications);
-
       setNotifications(payload.data.notifications);
-    } else if (isError) {
+    } else if (isError || !payload?.data?.notifications) {
       setNotifications([]);
     }
   }, [isSuccess, isError, payload]);
@@ -735,19 +748,41 @@ const AdminDashboard = () => {
         },
       });
 
-      const notification = (response.data as ResponsePayload).data
-        ?.notification;
-      setNotifications((prev) =>
-        prev.map((noti) =>
-          noti.id === notification.id ? { ...notification } : noti
-        )
-      );
-    } catch (ex) {
-      console.error("Error reading notification :", ex.message);
-
+      const payload = response.data as ResponsePayload;
+      
+      // The backend returns data as a Map with "notification" key
+      const notificationData = payload.data as any;
+      const notification = notificationData?.notification as AdminNotification;
+      
+      if (notification) {
+        // Update local state immediately for instant UI feedback
+        setNotifications((prev) =>
+          prev.map((noti) =>
+            noti.id === notification.id ? { ...noti, ...notification, isRead: true } : noti
+          )
+        );
+        
+        // Refetch notifications to ensure consistency with backend
+        if (refetchNotifications) {
+          refetchNotifications();
+        }
+        
+        toast({
+          title: "Success!",
+          description: "Notification marked as read",
+          variant: "default",
+        });
+      } else {
+        throw new Error("Notification data not found in response");
+      }
+    } catch (ex: any) {
+      console.error("Error reading notification:", ex);
+      
+      const errorMessage = ex.response?.data?.message || ex.message || "Something went wrong. Please try again";
+      
       toast({
         title: "Error!",
-        description: "Something went wrong. Please try again",
+        description: errorMessage,
         variant: "error",
       });
     }
@@ -1168,40 +1203,17 @@ const AdminDashboard = () => {
                                 ).toLocaleDateString()}
                               </TableCell>
                               <TableCell className="space-x-2">
-                                <Button variant="outline" size="sm" asChild>
-                                  <Link to={`/project-review/${project.id}`}>
-                                    Review
-                                  </Link>
-                                </Button>
                                 {project.status === "pending_review" && (
-                                  <>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      className="border-green-200 hover:border-green-300 hover:bg-green-50"
-                                      asChild
-                                    >
-                                      <Link
-                                        to={`/project-review/${project.id}`}
-                                      >
-                                        <CheckCircle className="mr-1 h-3 w-3" />
-                                        Approve
-                                      </Link>
-                                    </Button>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      className="border-red-200 hover:border-red-300 hover:bg-red-50"
-                                      asChild
-                                    >
-                                      <Link
-                                        to={`/project-review/${project.id}`}
-                                      >
-                                        <AlertCircle className="mr-1 h-3 w-3" />
-                                        Reject
-                                      </Link>
-                                    </Button>
-                                  </>
+                                  <Button variant="outline" size="sm" asChild>
+                                    <Link to={`/project-review/${project.id}`}>
+                                      Review
+                                    </Link>
+                                  </Button>
+                                )}
+                                {project.status !== "pending_review" && (
+                                  <span className="text-sm text-gray-500">
+                                    {project.status === "approved" ? "Approved" : project.status === "rejected" ? "Rejected" : project.status}
+                                  </span>
                                 )}
                               </TableCell>
                             </TableRow>

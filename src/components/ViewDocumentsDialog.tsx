@@ -6,7 +6,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { FileText, Download, ExternalLink } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 
 interface ViewDocumentsDialogProps {
   open: boolean;
@@ -61,16 +61,6 @@ export default function ViewDocumentsDialog({
     }
   };
 
-  const handleDownload = (url: string, fileName: string) => {
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = fileName;
-    link.target = "_blank";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
   const handleView = (url: string) => {
     window.open(url, "_blank");
   };
@@ -96,7 +86,7 @@ export default function ViewDocumentsDialog({
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
-            View and download documents related to this notification.
+            View documents related to this notification.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-2 mt-4">
@@ -128,15 +118,6 @@ export default function ViewDocumentsDialog({
                   >
                     <ExternalLink className="h-4 w-4" />
                     View
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleDownload(url, fileName)}
-                    className="flex items-center gap-1"
-                  >
-                    <Download className="h-4 w-4" />
-                    Download
                   </Button>
                 </div>
               </div>

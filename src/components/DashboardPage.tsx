@@ -1,16 +1,18 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { InvestorDashboard } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   markNotificationAsRead,
   InvestorNotificationDto,
 } from "@/api/investor";
 import { useToast } from "@/components/ui/use-toast";
+import apiClient from "@/api/common/apiClient";
+import { ResponsePayload } from "@/lib/types";
 
 interface DashboardPageProps {
   dashboard: InvestorDashboard;
@@ -44,7 +46,55 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ dashboard }) => {
   const investorInvestments = investments;
   const watchlistItems = watchlist;
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [notificationsState, setNotificationsState] = useState(notifications);
+  const [acceptedRequests, setAcceptedRequests] = useState<any[]>([]);
+  const [loadingRequests, setLoadingRequests] = useState(false);
+
+  const fetchAcceptedRequests = async () => {
+    setLoadingRequests(true);
+    try {
+      const response = await apiClient.get<ResponsePayload>(
+        "/investors/me/investment-requests/accepted"
+      );
+      if (response.data.status === 200) {
+        const allRequests = response.data.data.requests || [];
+        // Filter out paid requests - only show accepted but not yet paid
+        const unpaidRequests = allRequests.filter(
+          (request: any) => request.status !== "PAID"
+        );
+        setAcceptedRequests(unpaidRequests);
+      }
+    } catch (error) {
+      console.error("Error fetching accepted requests:", error);
+      setAcceptedRequests([]);
+    } finally {
+      setLoadingRequests(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAcceptedRequests();
+    
+    // Refresh when page becomes visible (e.g., user returns from payment page)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        fetchAcceptedRequests();
+      }
+    };
+    
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
+
+  const acceptedRequestsCount = acceptedRequests.length;
+
+  const handlePayNow = (requestId: number) => {
+    navigate(`/payment/${requestId}`);
+  };
 
   const handleMarkAsRead = async (notificationId: number) => {
     try {
@@ -165,6 +215,14 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ dashboard }) => {
           <TabsTrigger value="portfolio">My Portfolio</TabsTrigger>
           <TabsTrigger value="watchlist">Watchlist</TabsTrigger>
           <TabsTrigger value="goals">Goals</TabsTrigger>
+          <TabsTrigger value="payment-requests" className="relative">
+            Payment Requests
+            {acceptedRequestsCount > 0 && (
+              <Badge className="ml-2 bg-green-500 hover:bg-green-600 text-white">
+                {acceptedRequestsCount}
+              </Badge>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
         </TabsList>
 
@@ -433,6 +491,74 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ dashboard }) => {
           </div>
         </TabsContent>
 
+        <TabsContent value="payment-requests" className="space-y-8">
+          <div>
+            <h2 className="text-xl font-semibold mb-4">Accepted Investment Requests</h2>
+            {loadingRequests ? (
+              <div className="text-center py-12">
+                <div>Loading payment requests...</div>
+              </div>
+            ) : acceptedRequests.length > 0 ? (
+              <div className="grid grid-cols-1 gap-6">
+                {acceptedRequests.map((request) => (
+                  <Card key={request.id} className="border-l-4 border-l-green-500">
+                    <CardContent className="p-6">
+                      <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+                        <div className="flex-1 mb-4 md:mb-0">
+                          <h3 className="text-lg font-semibold mb-2">
+                            {request.investmentTitle}
+                          </h3>
+                          <div className="space-y-1 text-sm text-gray-600">
+                            <p>
+                              <strong>Amount:</strong> {formatCurrency(Number(request.amount))}
+                            </p>
+                            <p>
+                              <strong>Accepted:</strong> {formatDate(request.acceptedAt)}
+                            </p>
+                            {request.message && (
+                              <p>
+                                <strong>Company Message:</strong> {request.message}
+                              </p>
+                            )}
+                          </div>
+                          <Badge className="mt-2 bg-green-500">
+                            Accepted - Ready to Pay
+                          </Badge>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            className="bg-lebanese-navy hover:bg-opacity-90"
+                            onClick={() => handlePayNow(request.id)}
+                          >
+                            Pay Now
+                          </Button>
+                          <Button variant="outline" asChild>
+                            <Link to={`/investments/${request.investmentId}`}>
+                              View Project
+                            </Link>
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                  <Badge className="h-8 w-8 text-gray-400" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900">
+                  No accepted requests
+                </h3>
+                <p className="mt-1 text-gray-500 max-w-sm mx-auto">
+                  When companies accept your investment requests, they will appear here for payment.
+                </p>
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
         <TabsContent value="notifications" className="space-y-8">
           <div>
             <h2 className="text-xl font-semibold mb-4">Your Notifications</h2>
@@ -519,6 +645,24 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ dashboard }) => {
                             </svg>
                           </div>
                         )}
+                        {notification.type === "investment_accepted" && (
+                          <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-6 w-6 text-green-600"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                              />
+                            </svg>
+                          </div>
+                        )}
                       </div>
                       <div className="flex-1">
                         <div className="flex justify-between">
@@ -533,26 +677,48 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ dashboard }) => {
                           {notification.message}
                         </p>
                         {notification.relatedInvestmentId && (
-                          <div className="mt-2">
+                          <div className="mt-2 flex gap-2">
                             <Link
                               to={`/investments/${notification.relatedInvestmentId}`}
                               className="text-lebanese-navy hover:underline text-sm"
                             >
                               View Investment →
                             </Link>
+                            {notification.type === "investment_accepted" && (
+                              <Button
+                                size="sm"
+                                className="bg-lebanese-navy hover:bg-opacity-90 text-white ml-2"
+                                onClick={() => {
+                                  // Find the request ID from accepted requests (only unpaid ones)
+                                  const request = acceptedRequests.find(
+                                    (r: any) => r.investmentId === notification.relatedInvestmentId && r.status !== "PAID"
+                                  );
+                                  if (request) {
+                                    handlePayNow(request.id);
+                                  } else {
+                                    // If not found (already paid or not in list), navigate to payment requests tab
+                                    navigate("/dashboard", { state: { tab: "payment-requests" } });
+                                  }
+                                }}
+                              >
+                                Pay Now
+                              </Button>
+                            )}
                           </div>
                         )}
                       </div>
                       {!notification.read && (
                         <div className="ml-4 flex items-center gap-2">
                           <Badge className="bg-blue-500">New</Badge>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleMarkAsRead(notification.id)}
-                          >
-                            Mark as Read
-                          </Button>
+                          {notification.type !== "investment_accepted" && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleMarkAsRead(notification.id)}
+                            >
+                              Mark as Read
+                            </Button>
+                          )}
                         </div>
                       )}
                     </div>

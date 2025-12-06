@@ -28,6 +28,8 @@ import ResetPassword from "./pages/ResetPassword";
 import CompanyVerification from "./pages/CompanyVerification";
 import InvestorSettings from "./pages/InvestorSettings";
 import CompanySettings from "./pages/CompanySettings";
+import PaymentPage from "./pages/PaymentPage";
+import PaymentSuccessPage from "./pages/PaymentSuccessPage";
 import ChatBot from "./components/ChatBot";
 const queryClient = new QueryClient();
 
@@ -62,6 +64,8 @@ const App = () => (
           <Route path="/faq" element={<FAQ />} />
           <Route path="/how-it-works" element={<HowItWorks />} />
           <Route path="/reset-password/:token" element={<ResetPassword/>}/>
+          <Route path="/payment/:requestId" element={<PaymentPage />} />
+          <Route path="/payment-success/:requestId" element={<PaymentSuccessPage />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

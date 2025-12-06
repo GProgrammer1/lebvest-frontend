@@ -171,8 +171,8 @@ const InvestmentDetail: React.FC<InvestmentDetailProps> = ({ investment, onInves
 
       if (response.data.status === 201) {
         toast({
-          title: "Investment Successful!",
-          description: `You have successfully invested ${formatCurrency(finalAmount)} in this project.`,
+          title: "Investment Request Submitted!",
+          description: `Your investment request of ${formatCurrency(finalAmount)} has been submitted. The company will review your request and notify you.`,
         });
         setIsInvestDialogOpen(false);
         setCustomAmountInput("");

@@ -244,8 +244,8 @@ const ProjectReview = () => {
         const response = await apiClient.post<ResponsePayload>(
           `/admin/projects/${id}/reject`,
           { 
-            reason: reviewNotes.trim(),
-            reviewNotes: reviewNotes.trim()
+            reason: reviewNotes.trim(), // Required rejection reason
+            reviewNotes: reviewNotes.trim() // Additional review notes (same as reason in this case)
           }
         );
         
@@ -607,13 +607,22 @@ const ProjectReview = () => {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Review Notes</label>
+                    <label className="text-sm font-medium">
+                      Review Notes {reviewAction === "reject" && <span className="text-red-500">*</span>}
+                    </label>
                     <Textarea
-                      placeholder="Add your review notes here. If rejecting the project, provide clear reasons..."
+                      placeholder={reviewAction === "reject" 
+                        ? "Provide clear reasons for rejection (required)..." 
+                        : "Add your review notes here (optional for approval)..."}
                       className="min-h-[150px]"
                       value={reviewNotes}
                       onChange={(e) => setReviewNotes(e.target.value)}
                     />
+                    {reviewAction === "reject" && (
+                      <p className="text-xs text-gray-500">
+                        Review notes are required when rejecting a project. These will be sent to the company.
+                      </p>
+                    )}
                   </div>
                   
                   <div className="space-y-2">
