@@ -25,6 +25,18 @@ class ApiClient {
   // Add auth token if present
   private handleRequest(config: InternalAxiosRequestConfig): InternalAxiosRequestConfig {
     const token = localStorage.getItem('authToken');
+    
+    // If data is FormData, remove Content-Type header to let browser set it with boundary
+    // But do this BEFORE setting Authorization to ensure it's preserved
+    if (config.data instanceof FormData) {
+      if (config.headers && typeof config.headers.delete === 'function') {
+        config.headers.delete('Content-Type');
+      } else if (config.headers && 'Content-Type' in config.headers) {
+        delete (config.headers as Record<string, any>)['Content-Type'];
+      }
+    }
+    
+    // Set Authorization header after handling FormData
     if (token) {
       if (config.headers && typeof config.headers.set === 'function') {
         // Axios v1: headers is AxiosHeaders instance
@@ -32,15 +44,6 @@ class ApiClient {
       } else if (config.headers) {
         // Fallback for plain object headers
         (config.headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
-      }
-    }
-    
-    // If data is FormData, remove Content-Type header to let browser set it with boundary
-    if (config.data instanceof FormData) {
-      if (config.headers && typeof config.headers.delete === 'function') {
-        config.headers.delete('Content-Type');
-      } else if (config.headers && 'Content-Type' in config.headers) {
-        delete (config.headers as Record<string, any>)['Content-Type'];
       }
     }
     

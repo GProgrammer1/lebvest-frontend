@@ -6,6 +6,22 @@ import { Search, User, LogOut, CheckCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import apiClient from '@/api/common/apiClient';
 import { ResponsePayload } from '@/lib/types';
+import { fetchInvestorProfile } from '@/api/investor';
+import { getCompanyProfile } from '@/api/company';
+
+// Helper function to get full image URL
+const getImageUrl = (imageUrl: string | null | undefined): string | null => {
+  if (!imageUrl) return null;
+  
+  // If it's already a full URL (http/https), return as is
+  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+    return imageUrl;
+  }
+  
+  // Otherwise, prepend the API base URL
+  const apiBaseUrl = import.meta.env.REACT_APP_API_URL || 'http://localhost:8080';
+  return `${apiBaseUrl}/${imageUrl}`;
+};
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -13,6 +29,7 @@ const Navbar = () => {
   const [mobileSearchQuery, setMobileSearchQuery] = useState('');
   const [logoError, setLogoError] = useState(false);
   const [needsVerification, setNeedsVerification] = useState(false);
+  const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
   const navigate = useNavigate();
   const { isAuthenticated, role } = useAuth();
 
@@ -41,6 +58,41 @@ const Navbar = () => {
     };
 
     checkVerificationStatus();
+  }, [isAuthenticated, role]);
+
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (isAuthenticated) {
+        try {
+          if (role === 'Investor') {
+            const profile = await fetchInvestorProfile();
+            if (profile.imageUrl) {
+              const fullImageUrl = getImageUrl(profile.imageUrl);
+              setProfileImageUrl(fullImageUrl);
+            } else {
+              setProfileImageUrl(null);
+            }
+          } else if (role === 'Company') {
+            const profile = await getCompanyProfile();
+            if (profile.logo) {
+              const fullImageUrl = getImageUrl(profile.logo);
+              setProfileImageUrl(fullImageUrl);
+            } else {
+              setProfileImageUrl(null);
+            }
+          } else {
+            setProfileImageUrl(null);
+          }
+        } catch (error) {
+          console.error("Error loading profile:", error);
+          setProfileImageUrl(null);
+        }
+      } else {
+        setProfileImageUrl(null);
+      }
+    };
+
+    loadProfile();
   }, [isAuthenticated, role]);
 
   const handleLogout = () => {
@@ -101,6 +153,9 @@ const Navbar = () => {
                       <Link to="/list-project" className="text-gray-700 hover:text-lebanese-green inline-flex items-center px-1 pt-1 text-sm font-medium">
                         List Project
                       </Link>
+                      <Link to="/company-settings" className="text-gray-700 hover:text-lebanese-green inline-flex items-center px-1 pt-1 text-sm font-medium">
+                        Settings
+                      </Link>
                     </>
                   )}
                   {role === 'Admin' && (
@@ -143,7 +198,19 @@ const Navbar = () => {
                     Complete Verification
                   </Button>
                 )}
-                <span className="text-sm text-gray-600">{role}</span>
+                {(role === 'Investor' || role === 'Company') && profileImageUrl ? (
+                  <div className="flex items-center gap-2">
+                    <img 
+                      src={profileImageUrl} 
+                      alt="Profile" 
+                      className="h-8 w-8 rounded-full object-cover border-2 border-gray-200"
+                      onError={() => setProfileImageUrl(null)}
+                    />
+                    <span className="text-sm text-gray-600">{role}</span>
+                  </div>
+                ) : (
+                  <span className="text-sm text-gray-600">{role}</span>
+                )}
                 <Button 
                   variant="outline" 
                   onClick={handleLogout}
@@ -241,6 +308,13 @@ const Navbar = () => {
                     >
                       List Project
                     </Link>
+                    <Link
+                      to="/company-settings"
+                      className="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      Settings
+                    </Link>
                   </>
                 )}
                 {role === 'Admin' && (
@@ -265,9 +339,18 @@ const Navbar = () => {
           <div className="pt-4 pb-3 border-t border-gray-200">
             <div className="flex items-center px-4">
               <div className="flex-shrink-0">
-                <div className="h-10 w-10 rounded-full bg-lebanese-navy flex items-center justify-center">
-                  <User className="h-6 w-6 text-white" />
-                </div>
+                {isAuthenticated && role === 'Investor' && profileImageUrl ? (
+                  <img 
+                    src={profileImageUrl} 
+                    alt="Profile" 
+                    className="h-10 w-10 rounded-full object-cover border-2 border-gray-200"
+                    onError={() => setProfileImageUrl(null)}
+                  />
+                ) : (
+                  <div className="h-10 w-10 rounded-full bg-lebanese-navy flex items-center justify-center">
+                    <User className="h-6 w-6 text-white" />
+                  </div>
+                )}
               </div>
               <div className="ml-3">
                 {isAuthenticated ? (

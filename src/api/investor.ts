@@ -80,6 +80,7 @@ export interface InvestorProfileDto {
   portfolioValue: number;
   totalInvested: number;
   totalReturns: number;
+  profilePublic?: boolean;
 }
 
 export interface InvestorPreferenceDto {
@@ -103,12 +104,19 @@ export interface UpdateInvestorProfileRequest {
   email?: string;
   bio?: string;
   imageUrl?: string;
+  profilePublic?: boolean;
 }
 
 export interface UpdateInvestorPreferenceRequest {
   categories: string[];
   riskLevels: string[];
   locations: string[];
+}
+
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
 }
 
 export const fetchInvestorProfile = async (): Promise<InvestorProfileDto> => {
@@ -162,4 +170,38 @@ export const markNotificationAsRead = async (
     `/investors/me/notifications/${notificationId}/read`
   );
   return response.data.data.notification;
+};
+
+export const changePassword = async (
+  request: ChangePasswordRequest
+): Promise<void> => {
+  await apiClient.put<ApiResponse<{}>>(
+    "/investors/me/change-password",
+    request
+  );
+};
+
+export const uploadProfileImage = async (
+  file: File
+): Promise<string> => {
+  const formData = new FormData();
+  formData.append("file", file);
+  
+  // Get token to ensure it's available
+  const token = localStorage.getItem('authToken');
+  if (!token) {
+    throw new Error('Authentication required. Please sign in again.');
+  }
+  
+  const response = await apiClient.post<ApiResponse<{ imageUrl: string }>>(
+    "/investors/me/profile-image",
+    formData,
+    {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        // Don't set Content-Type - let browser set it with boundary for multipart/form-data
+      }
+    }
+  );
+  return response.data.data.imageUrl;
 };

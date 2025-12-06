@@ -280,7 +280,10 @@ const CompanyDashboard = () => {
                 Find potential investors for your projects
               </p>
             </div>
-            <Button className="mt-4 md:mt-0 bg-lebanese-navy hover:bg-opacity-90">
+            <Button 
+              onClick={() => navigate("/company-settings")}
+              className="mt-4 md:mt-0 bg-lebanese-navy hover:bg-opacity-90"
+            >
               Update Company Profile
             </Button>
           </div>

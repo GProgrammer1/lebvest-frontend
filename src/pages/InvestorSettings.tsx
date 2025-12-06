@@ -16,17 +16,34 @@ import {
   updateInvestorProfile,
   fetchInvestorPreferences,
   updateInvestorPreferences,
+  changePassword,
+  uploadProfileImage,
   InvestorProfileDto,
   InvestorPreferenceDto,
   UpdateInvestorProfileRequest,
   UpdateInvestorPreferenceRequest,
+  ChangePasswordRequest,
 } from "@/api/investor";
 import {
   InvestmentCategory,
   RiskLevel,
   Location as EnumLocation,
 } from "@/lib/types";
-import { ArrowLeft, Save } from "lucide-react";
+import { ArrowLeft, Save, Upload, X } from "lucide-react";
+
+// Helper function to get full image URL
+const getImageUrl = (imageUrl: string | null | undefined): string | null => {
+  if (!imageUrl) return null;
+  
+  // If it's already a full URL (http/https), return as is
+  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+    return imageUrl;
+  }
+  
+  // Otherwise, prepend the API base URL
+  const apiBaseUrl = import.meta.env.REACT_APP_API_URL || 'http://localhost:8080';
+  return `${apiBaseUrl}/${imageUrl}`;
+};
 
 const InvestorSettings = () => {
   const navigate = useNavigate();
@@ -43,6 +60,7 @@ const InvestorSettings = () => {
     email: "",
     bio: "",
     imageUrl: "",
+    profilePublic: false,
   });
 
   const [preferencesForm, setPreferencesForm] = useState<UpdateInvestorPreferenceRequest>({
@@ -50,6 +68,16 @@ const InvestorSettings = () => {
     riskLevels: [],
     locations: [],
   });
+
+  const [passwordForm, setPasswordForm] = useState<ChangePasswordRequest>({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+
+  const [profileImageFile, setProfileImageFile] = useState<File | null>(null);
+  const [profileImagePreview, setProfileImagePreview] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -71,7 +99,14 @@ const InvestorSettings = () => {
         email: profileData.email || "",
         bio: profileData.bio || "",
         imageUrl: profileData.imageUrl || "",
+        profilePublic: profileData.profilePublic ?? false,
       });
+
+      // Set image preview if imageUrl exists
+      if (profileData.imageUrl) {
+        const fullImageUrl = getImageUrl(profileData.imageUrl);
+        setProfileImagePreview(fullImageUrl);
+      }
 
       // Convert backend lowercase strings to frontend enum format
       // Backend returns lowercase like "real_estate", "low", "beirut"
@@ -131,15 +166,99 @@ const InvestorSettings = () => {
     }
   };
 
-  const handleProfileChange = (field: keyof UpdateInvestorProfileRequest, value: string) => {
+  const handleProfileChange = (field: keyof UpdateInvestorProfileRequest, value: string | boolean) => {
     setProfileForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith("image/")) {
+        toast({
+          title: "Error",
+          description: "Please select an image file.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "Error",
+          description: "Image size must be less than 5MB.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setProfileImageFile(file);
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProfileImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleImageUpload = async () => {
+    if (!profileImageFile) return;
+
+    try {
+      setUploadingImage(true);
+      const imageUrl = await uploadProfileImage(profileImageFile);
+      setProfileForm((prev) => ({ ...prev, imageUrl }));
+      setProfileImageFile(null);
+      
+      // Update preview with the server URL
+      const fullImageUrl = getImageUrl(imageUrl);
+      setProfileImagePreview(fullImageUrl);
+      
+      toast({
+        title: "Success",
+        description: "Profile image uploaded successfully!",
+      });
+    } catch (error: any) {
+      console.error("Failed to upload image:", error);
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to upload image. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setProfileImageFile(null);
+    setProfileImagePreview(null);
+    setProfileForm((prev) => ({ ...prev, imageUrl: "" }));
   };
 
   const handleSaveProfile = async () => {
     try {
       setSaving(true);
+      
+      // Upload image first if a new one was selected
+      if (profileImageFile) {
+        const imageUrl = await uploadProfileImage(profileImageFile);
+        profileForm.imageUrl = imageUrl;
+        setProfileImageFile(null);
+      }
+      
       const updated = await updateInvestorProfile(profileForm);
       setProfile(updated);
+      
+      // Update preview with new imageUrl
+      if (updated.imageUrl) {
+        const fullImageUrl = getImageUrl(updated.imageUrl);
+        setProfileImagePreview(fullImageUrl);
+      }
+      
       toast({
         title: "Success",
         description: "Profile updated successfully!",
@@ -233,6 +352,55 @@ const InvestorSettings = () => {
     }
   };
 
+  const handlePasswordChange = (field: keyof ChangePasswordRequest, value: string) => {
+    setPasswordForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleChangePassword = async () => {
+    // Validate passwords match
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      toast({
+        title: "Error",
+        description: "New password and confirmation password do not match.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate password length
+    if (passwordForm.newPassword.length < 8) {
+      toast({
+        title: "Error",
+        description: "New password must be at least 8 characters long.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await changePassword(passwordForm);
+      setPasswordForm({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+      toast({
+        title: "Success",
+        description: "Password changed successfully!",
+      });
+    } catch (error: any) {
+      console.error("Failed to change password:", error);
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to change password. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col min-h-screen">
@@ -293,13 +461,14 @@ const InvestorSettings = () => {
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Dashboard
             </Button>
-            <h1 className="text-3xl font-bold">Settings</h1>
-            <p className="text-gray-600 mt-2">Manage your profile and investment preferences</p>
+            <h1 className="text-3xl font-bold text-lebanese-navy">Settings</h1>
+            <p className="text-gray-600 mt-2">Manage your profile, password, and investment preferences</p>
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList>
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="profile">Profile</TabsTrigger>
+              <TabsTrigger value="password">Password</TabsTrigger>
               <TabsTrigger value="preferences">Preferences</TabsTrigger>
             </TabsList>
 
@@ -345,13 +514,75 @@ const InvestorSettings = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="imageUrl">Profile Image URL</Label>
-                    <Input
-                      id="imageUrl"
-                      value={profileForm.imageUrl}
-                      onChange={(e) => handleProfileChange("imageUrl", e.target.value)}
-                      placeholder="https://example.com/image.jpg"
-                    />
+                    <Label htmlFor="profileImage">Profile Image</Label>
+                    <div className="flex flex-col gap-4">
+                      {profileImagePreview && (
+                        <div className="relative w-32 h-32 rounded-lg overflow-hidden border-2 border-gray-200">
+                          <img
+                            src={profileImagePreview}
+                            alt="Profile preview"
+                            className="w-full h-full object-cover"
+                          />
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="icon"
+                            className="absolute top-1 right-1 h-6 w-6"
+                            onClick={handleRemoveImage}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
+                      <div className="flex gap-2">
+                        <Input
+                          id="profileImage"
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageSelect}
+                          className="hidden"
+                        />
+                        <Label
+                          htmlFor="profileImage"
+                          className="flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md cursor-pointer hover:bg-gray-50"
+                        >
+                          <Upload className="h-4 w-4 mr-2" />
+                          {profileImageFile ? profileImageFile.name : "Choose Image"}
+                        </Label>
+                        {profileImageFile && (
+                          <Button
+                            type="button"
+                            onClick={handleImageUpload}
+                            disabled={uploadingImage}
+                            className="bg-lebanese-green hover:bg-lebanese-green/90 text-white"
+                          >
+                            {uploadingImage ? "Uploading..." : "Upload"}
+                          </Button>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        Accepted formats: JPG, PNG, GIF. Max size: 5MB
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 pt-4 border-t">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="profilePublic"
+                        checked={profileForm.profilePublic || false}
+                        onCheckedChange={(checked) => 
+                          handleProfileChange("profilePublic", checked as boolean)
+                        }
+                      />
+                      <Label htmlFor="profilePublic" className="text-sm font-medium cursor-pointer">
+                        Make my profile public
+                      </Label>
+                    </div>
+                    <p className="text-xs text-gray-500 ml-6">
+                      When public, companies can view your portfolio summary, bio, and investment details. 
+                      Your contact information (email) is always visible regardless of this setting.
+                    </p>
                   </div>
 
                   {profile && (
@@ -381,10 +612,69 @@ const InvestorSettings = () => {
                     <Button
                       onClick={handleSaveProfile}
                       disabled={saving}
-                      className="bg-lebanese-navy hover:bg-opacity-90"
+                      className="bg-lebanese-navy hover:bg-lebanese-navy/90 text-white"
                     >
                       <Save className="h-4 w-4 mr-2" />
                       {saving ? "Saving..." : "Save Profile"}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="password">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Change Password</CardTitle>
+                  <CardDescription>
+                    Update your password to keep your account secure
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="currentPassword">Current Password</Label>
+                    <Input
+                      id="currentPassword"
+                      type="password"
+                      value={passwordForm.currentPassword}
+                      onChange={(e) => handlePasswordChange("currentPassword", e.target.value)}
+                      placeholder="Enter your current password"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="newPassword">New Password</Label>
+                    <Input
+                      id="newPassword"
+                      type="password"
+                      value={passwordForm.newPassword}
+                      onChange={(e) => handlePasswordChange("newPassword", e.target.value)}
+                      placeholder="Enter your new password (min. 8 characters)"
+                    />
+                    <p className="text-xs text-gray-500">
+                      Password must be at least 8 characters long
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                    <Input
+                      id="confirmPassword"
+                      type="password"
+                      value={passwordForm.confirmPassword}
+                      onChange={(e) => handlePasswordChange("confirmPassword", e.target.value)}
+                      placeholder="Confirm your new password"
+                    />
+                  </div>
+
+                  <div className="flex justify-end pt-4">
+                    <Button
+                      onClick={handleChangePassword}
+                      disabled={saving || !passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword}
+                      className="bg-lebanese-navy hover:bg-lebanese-navy/90 text-white"
+                    >
+                      <Save className="h-4 w-4 mr-2" />
+                      {saving ? "Changing..." : "Change Password"}
                     </Button>
                   </div>
                 </CardContent>
@@ -482,7 +772,7 @@ const InvestorSettings = () => {
                     <Button
                       onClick={handleSavePreferences}
                       disabled={saving}
-                      className="bg-lebanese-navy hover:bg-opacity-90"
+                      className="bg-lebanese-navy hover:bg-lebanese-navy/90 text-white"
                     >
                       <Save className="h-4 w-4 mr-2" />
                       {saving ? "Saving..." : "Save Preferences"}

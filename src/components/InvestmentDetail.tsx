@@ -14,6 +14,8 @@ import apiClient from "@/api/common/apiClient";
 import { ResponsePayload } from "@/lib/types";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { getCompanyProfileById } from "@/api/company";
+import { Building2 } from "lucide-react";
 
 interface InvestmentDetailProps {
   investment: Investment;
@@ -42,6 +44,20 @@ const capitalize = (str: string): string => {
   ).join(' ');
 };
 
+// Helper function to get full image URL
+const getImageUrl = (imageUrl: string | null | undefined): string | null => {
+  if (!imageUrl) return null;
+  
+  // If it's already a full URL (http/https), return as is
+  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+    return imageUrl;
+  }
+  
+  // Otherwise, prepend the API base URL
+  const apiBaseUrl = import.meta.env.REACT_APP_API_URL || 'http://localhost:8080';
+  return `${apiBaseUrl}/${imageUrl}`;
+};
+
 const InvestmentDetail: React.FC<InvestmentDetailProps> = ({ investment, onInvestmentSuccess }) => {
   const [investmentAmount, setInvestmentAmount] = useState<number>(investment.minInvestment);
   const [customAmountInput, setCustomAmountInput] = useState<string>("");
@@ -49,10 +65,30 @@ const InvestmentDetail: React.FC<InvestmentDetailProps> = ({ investment, onInves
   const [isInvesting, setIsInvesting] = useState(false);
   const [isWatchlisted, setIsWatchlisted] = useState(false);
   const [isTogglingWatchlist, setIsTogglingWatchlist] = useState(false);
+  const [companyLogo, setCompanyLogo] = useState<string | null>(null);
+  const [companyLogoError, setCompanyLogoError] = useState(false);
   const { toast } = useToast();
   const { isAuthenticated, role } = useAuth();
   const isInvestor = role === 'Investor';
   const progressPercentage = (investment.raisedAmount / investment.targetAmount) * 100;
+
+  // Fetch company logo if companyId is available
+  useEffect(() => {
+    const fetchCompanyLogo = async () => {
+      if (investment.companyId) {
+        try {
+          const company = await getCompanyProfileById(investment.companyId);
+          if (company.logo) {
+            setCompanyLogo(getImageUrl(company.logo));
+          }
+        } catch (error) {
+          console.error("Error fetching company logo:", error);
+          setCompanyLogoError(true);
+        }
+      }
+    };
+    fetchCompanyLogo();
+  }, [investment.companyId]);
   
   useEffect(() => {
     // Check if investment is in watchlist
@@ -195,7 +231,44 @@ const InvestmentDetail: React.FC<InvestmentDetailProps> = ({ investment, onInves
           {/* Header */}
           <div className="mb-6">
             <h1 className="text-3xl font-bold mb-2">{investment.title}</h1>
-            <p className="text-xl text-gray-600 mb-4">{investment.companyName}</p>
+            <div className="flex items-center gap-3 mb-4">
+              {investment.companyId ? (
+                <Link 
+                  to={`/company-profile/${investment.companyId}`}
+                  className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+                >
+                  {companyLogo && !companyLogoError ? (
+                    <img 
+                      src={companyLogo} 
+                      alt={investment.companyName || 'Company'} 
+                      className="h-12 w-12 rounded-full object-cover border-2 border-gray-200"
+                      onError={() => setCompanyLogoError(true)}
+                    />
+                  ) : (
+                    <div className="h-12 w-12 rounded-full bg-lebanese-navy/10 flex items-center justify-center border-2 border-gray-200">
+                      <Building2 className="h-6 w-6 text-lebanese-navy" />
+                    </div>
+                  )}
+                  <p className="text-xl text-gray-600 hover:text-lebanese-navy">{investment.companyName}</p>
+                </Link>
+              ) : (
+                <>
+                  {companyLogo && !companyLogoError ? (
+                    <img 
+                      src={companyLogo} 
+                      alt={investment.companyName || 'Company'} 
+                      className="h-12 w-12 rounded-full object-cover border-2 border-gray-200"
+                      onError={() => setCompanyLogoError(true)}
+                    />
+                  ) : (
+                    <div className="h-12 w-12 rounded-full bg-lebanese-navy/10 flex items-center justify-center border-2 border-gray-200">
+                      <Building2 className="h-6 w-6 text-lebanese-navy" />
+                    </div>
+                  )}
+                  <p className="text-xl text-gray-600">{investment.companyName}</p>
+                </>
+              )}
+            </div>
             <div className="flex flex-wrap gap-2 mb-4">
               <Badge variant="outline" className="capitalize">
                 {capitalize(investment.category)}

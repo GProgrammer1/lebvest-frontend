@@ -46,6 +46,10 @@ const CompanyVerification = () => {
 
   const [uploadedFiles, setUploadedFiles] = useState<Record<string, string>>({});
   const [multipleFiles, setMultipleFiles] = useState<Record<string, string[]>>({});
+  
+  // Store files locally before upload
+  const [pendingFiles, setPendingFiles] = useState<Record<string, File>>({});
+  const [pendingMultipleFiles, setPendingMultipleFiles] = useState<Record<string, File[]>>({});
 
   useEffect(() => {
     const loadExistingData = async () => {
@@ -84,9 +88,13 @@ const CompanyVerification = () => {
     formDataObj.append("file", file);
     
     try {
+      // Use a longer timeout for file uploads (60 seconds for large files)
       const response = await apiClient.post<{ status: number; message: string; data: { documentUrl: string } }>(
         "/companies/me/documents",
-        formDataObj
+        formDataObj,
+        {
+          timeout: 60000, // 60 seconds for file uploads
+        }
       );
       
       if (response.data.status === 201) {
@@ -95,65 +103,54 @@ const CompanyVerification = () => {
       throw new Error(response.data.message || "Upload failed");
     } catch (error: any) {
       console.error("File upload error:", error);
+      if (error.code === 'ECONNABORTED') {
+        throw new Error(`Upload timeout: ${file.name} is too large or the connection is slow. Please try again.`);
+      }
       const errorMessage = error.response?.data?.message || error.message || "Failed to upload file";
       throw new Error(errorMessage);
     }
   };
 
-  const handleFileChange = async (
+  const handleFileChange = (
     field: keyof CompanyVerificationRequest,
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    try {
-      const url = await handleFileUpload(field, file);
-      setFormData((prev) => ({ ...prev, [field]: url }));
-      setUploadedFiles((prev) => ({ ...prev, [field]: file.name }));
-      toast({
-        title: "File Uploaded",
-        description: `${file.name} uploaded successfully`,
-        variant: "success",
-      });
-    } catch (error) {
-      toast({
-        title: "Upload Failed",
-        description: `Failed to upload ${file.name}`,
-        variant: "error",
-      });
-    }
+    // Store file locally - don't upload yet
+    setPendingFiles((prev) => ({ ...prev, [field]: file }));
+    setUploadedFiles((prev) => ({ ...prev, [field]: file.name }));
+    
+    toast({
+      title: "File Selected",
+      description: `${file.name} selected. It will be uploaded when you submit the form.`,
+      variant: "default",
+    });
   };
 
-  const handleMultipleFileChange = async (
+  const handleMultipleFileChange = (
     field: keyof CompanyVerificationRequest,
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
     const files = Array.from(event.target.files || []);
     if (files.length === 0) return;
 
-    try {
-      const urls = await Promise.all(files.map((file) => handleFileUpload(field, file)));
-      setFormData((prev) => ({
-        ...prev,
-        [field]: [...(prev[field] as string[] || []), ...urls],
-      }));
-      setMultipleFiles((prev) => ({
-        ...prev,
-        [field]: [...(prev[field] || []), ...files.map(f => f.name)],
-      }));
-      toast({
-        title: "Files Uploaded",
-        description: `${files.length} file(s) uploaded successfully`,
-        variant: "success",
-      });
-    } catch (error) {
-      toast({
-        title: "Upload Failed",
-        description: "Failed to upload files",
-        variant: "error",
-      });
-    }
+    // Store files locally - don't upload yet
+    setPendingMultipleFiles((prev) => ({
+      ...prev,
+      [field]: [...(prev[field] || []), ...files],
+    }));
+    setMultipleFiles((prev) => ({
+      ...prev,
+      [field]: [...(prev[field] || []), ...files.map(f => f.name)],
+    }));
+    
+    toast({
+      title: "Files Selected",
+      description: `${files.length} file(s) selected. They will be uploaded when you submit the form.`,
+      variant: "default",
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -161,7 +158,134 @@ const CompanyVerification = () => {
     setIsLoading(true);
 
     try {
-      await submitCompanyVerification(formData);
+      // Prepare the final form data with existing URLs
+      const finalFormData = { ...formData };
+      
+      // Collect all upload promises to run in parallel
+      const singleFileUploads: Array<{ field: string; promise: Promise<string> }> = [];
+      const multipleFileUploads: Array<{ field: string; promise: Promise<string> }> = [];
+      
+      // Add single file uploads
+      for (const [field, file] of Object.entries(pendingFiles)) {
+        singleFileUploads.push({
+          field,
+          promise: handleFileUpload(field as keyof CompanyVerificationRequest, file)
+        });
+      }
+      
+      // Add multiple file uploads
+      for (const [field, files] of Object.entries(pendingMultipleFiles)) {
+        files.forEach((file) => {
+          multipleFileUploads.push({
+            field,
+            promise: handleFileUpload(field as keyof CompanyVerificationRequest, file)
+          });
+        });
+      }
+      
+      const totalFiles = singleFileUploads.length + multipleFileUploads.length;
+      
+      // Upload all files in parallel
+      if (totalFiles > 0) {
+        toast({
+          title: "Uploading Files",
+          description: `Uploading ${totalFiles} file(s)... This may take a moment.`,
+          variant: "default",
+        });
+      }
+      
+      // Upload single files and update formData
+      const singleResults = await Promise.all(
+        singleFileUploads.map(async ({ field, promise }) => {
+          const url = await promise;
+          return { field, url };
+        })
+      );
+      
+      singleResults.forEach(({ field, url }) => {
+        finalFormData[field as keyof CompanyVerificationRequest] = url as any;
+      });
+      
+      // Upload multiple files and group by field
+      const multipleResults = await Promise.all(
+        multipleFileUploads.map(async ({ field, promise }) => {
+          const url = await promise;
+          return { field, url };
+        })
+      );
+      
+      // Group multiple file URLs by field
+      const urlMap: Record<string, string[]> = {};
+      multipleResults.forEach(({ field, url }) => {
+        if (!urlMap[field]) urlMap[field] = [];
+        urlMap[field].push(url);
+      });
+      
+      // Add multiple file URLs to formData
+      for (const [field, urls] of Object.entries(urlMap)) {
+        const existingUrls = (finalFormData[field as keyof CompanyVerificationRequest] as string[]) || [];
+        finalFormData[field as keyof CompanyVerificationRequest] = [...existingUrls, ...urls] as any;
+      }
+      
+      // Clear pending files
+      setPendingFiles({});
+      setPendingMultipleFiles({});
+      
+      // Filter out empty values before submitting (only send fields with actual values)
+      const cleanedFormData: CompanyVerificationRequest = {};
+      
+      // Add single string fields only if they have values
+      if (finalFormData.certificateOfIncorporation?.trim()) {
+        cleanedFormData.certificateOfIncorporation = finalFormData.certificateOfIncorporation;
+      }
+      if (finalFormData.articlesOfAssociation?.trim()) {
+        cleanedFormData.articlesOfAssociation = finalFormData.articlesOfAssociation;
+      }
+      if (finalFormData.taxRegistrationCertificate?.trim()) {
+        cleanedFormData.taxRegistrationCertificate = finalFormData.taxRegistrationCertificate;
+      }
+      if (finalFormData.proofOfRegisteredAddress?.trim()) {
+        cleanedFormData.proofOfRegisteredAddress = finalFormData.proofOfRegisteredAddress;
+      }
+      if (finalFormData.shareholderStructure?.trim()) {
+        cleanedFormData.shareholderStructure = finalFormData.shareholderStructure;
+      }
+      if (finalFormData.boardResolution?.trim()) {
+        cleanedFormData.boardResolution = finalFormData.boardResolution;
+      }
+      if (finalFormData.pepSanctionsDeclaration?.trim()) {
+        cleanedFormData.pepSanctionsDeclaration = finalFormData.pepSanctionsDeclaration;
+      }
+      if (finalFormData.bankAccountConfirmation?.trim()) {
+        cleanedFormData.bankAccountConfirmation = finalFormData.bankAccountConfirmation;
+      }
+      if (finalFormData.sourceOfFundsDeclaration?.trim()) {
+        cleanedFormData.sourceOfFundsDeclaration = finalFormData.sourceOfFundsDeclaration;
+      }
+      
+      // Add array fields only if they have values
+      if (finalFormData.uboIds && finalFormData.uboIds.length > 0) {
+        cleanedFormData.uboIds = finalFormData.uboIds;
+      }
+      if (finalFormData.directorIds && finalFormData.directorIds.length > 0) {
+        cleanedFormData.directorIds = finalFormData.directorIds;
+      }
+      if (finalFormData.authorizedSignatoryIds && finalFormData.authorizedSignatoryIds.length > 0) {
+        cleanedFormData.authorizedSignatoryIds = finalFormData.authorizedSignatoryIds;
+      }
+      if (finalFormData.financialStatements && finalFormData.financialStatements.length > 0) {
+        cleanedFormData.financialStatements = finalFormData.financialStatements;
+      }
+      if (finalFormData.managementAccounts && finalFormData.managementAccounts.length > 0) {
+        cleanedFormData.managementAccounts = finalFormData.managementAccounts;
+      }
+      if (finalFormData.bankStatements && finalFormData.bankStatements.length > 0) {
+        cleanedFormData.bankStatements = finalFormData.bankStatements;
+      }
+      
+      // Now submit the form with only fields that have values
+      await submitCompanyVerification(cleanedFormData);
+      
       toast({
         title: "Documents Submitted!",
         description: "Your verification documents have been submitted. Please wait for admin approval.",
@@ -212,10 +336,10 @@ const CompanyVerification = () => {
           {fileName ? "Change file" : "Select file"}
         </button>
         {fileName ? (
-          <div className="mt-2 flex items-center justify-center gap-2 text-green-700 text-sm font-medium px-2 w-full min-w-0">
+          <div className="mt-2 flex items-center justify-center gap-2 text-blue-700 text-sm font-medium px-2 w-full min-w-0">
             <CheckCircle className="w-4 h-4 flex-shrink-0" />
             <span className="truncate max-w-full break-words overflow-wrap-anywhere" title={fileName}>
-              {fileName}
+              {fileName} {pendingFiles[field] ? "(Ready to upload)" : "(Already uploaded)"}
             </span>
           </div>
         ) : (
@@ -257,14 +381,18 @@ const CompanyVerification = () => {
         </button>
         {files.length > 0 && (
           <div className="mt-2 space-y-1 px-2 w-full">
-            {files.map((fileName, idx) => (
-              <div key={idx} className="flex items-center justify-center gap-2 text-green-700 text-sm font-medium w-full min-w-0">
-                <CheckCircle className="w-4 h-4 flex-shrink-0" />
-                <span className="truncate max-w-full break-words overflow-wrap-anywhere" title={fileName}>
-                  {fileName}
-                </span>
-              </div>
-            ))}
+            {files.map((fileName, idx) => {
+              const pendingFilesForField = pendingMultipleFiles[field] || [];
+              const isPending = pendingFilesForField.some(f => f.name === fileName);
+              return (
+                <div key={idx} className={`flex items-center justify-center gap-2 text-sm font-medium w-full min-w-0 ${isPending ? 'text-blue-700' : 'text-green-700'}`}>
+                  <CheckCircle className="w-4 h-4 flex-shrink-0" />
+                  <span className="truncate max-w-full break-words overflow-wrap-anywhere" title={fileName}>
+                    {fileName} {isPending ? "(Ready to upload)" : "(Already uploaded)"}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         )}
         {files.length === 0 && (

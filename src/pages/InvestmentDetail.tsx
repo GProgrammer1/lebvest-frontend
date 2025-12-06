@@ -32,6 +32,7 @@ const InvestmentDetailPage = () => {
             id: inv.id?.toString() || "",
             title: inv.title || "",
             companyName: inv.companyName || "",
+            companyId: inv.companyId || inv.company?.id,
             description: inv.description || "",
             category: inv.category?.toLowerCase() || "",
             sector: inv.sector?.toLowerCase() || "",

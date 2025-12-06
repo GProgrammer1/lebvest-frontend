@@ -1,12 +1,14 @@
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ProjectForm from "@/components/ProjectForm";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "@/hooks/use-toast";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, AlertCircle, CheckCircle } from "lucide-react";
 import apiClient from "@/api/common/apiClient";
 import { ResponsePayload } from "@/lib/types";
 
@@ -14,7 +16,26 @@ const ListProject = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [companyStatus, setCompanyStatus] = useState<string | null>(null);
+  const [isCheckingStatus, setIsCheckingStatus] = useState(true);
   const formDataRef = useRef<any>(null);
+
+  useEffect(() => {
+    const checkCompanyStatus = async () => {
+      try {
+        const response = await apiClient.get<ResponsePayload>("/companies/me/profile");
+        if (response.data.status === 200) {
+          const status = response.data.data?.profile?.status;
+          setCompanyStatus(status);
+        }
+      } catch (error) {
+        console.error("Error checking company status:", error);
+      } finally {
+        setIsCheckingStatus(false);
+      }
+    };
+    checkCompanyStatus();
+  }, []);
   
   const handleNextStep = async () => {
     if (step < 3) {
@@ -36,6 +57,17 @@ const ListProject = () => {
   };
 
   const handleSubmit = async () => {
+    // Check if company is fully verified
+    if (companyStatus !== "FULLY_VERIFIED") {
+      toast({
+        title: "Verification Required",
+        description: "Your company must be fully verified before you can post projects. Please complete the verification process.",
+        variant: "error",
+      });
+      navigate("/company-verification");
+      return;
+    }
+
     const formData = await formDataRef.current?.getFormData();
     if (!formData) {
       toast({
@@ -135,6 +167,60 @@ const ListProject = () => {
       
       <main className="flex-grow py-8 sm:py-12 bg-gray-50">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Status Check Alert */}
+          {!isCheckingStatus && companyStatus !== "FULLY_VERIFIED" && (
+            <Card className="mb-6 border-yellow-200 bg-yellow-50">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-yellow-800">
+                  <AlertCircle className="h-5 w-5" />
+                  Verification Required
+                </CardTitle>
+                <CardDescription className="text-yellow-700">
+                  {companyStatus === "APPROVED" || companyStatus === "PENDING_DOCS" ? (
+                    <>
+                      Your company verification documents are being reviewed. You'll be able to post projects once your verification is approved by our admin team.
+                      <br />
+                      <Button
+                        onClick={() => navigate("/company-verification")}
+                        className="mt-4 bg-yellow-600 hover:bg-yellow-700 text-white"
+                      >
+                        View Verification Status
+                      </Button>
+                    </>
+                  ) : companyStatus === "PENDING" ? (
+                    <>
+                      Your company signup is pending admin approval. Once approved, you'll need to complete verification before posting projects.
+                    </>
+                  ) : companyStatus === "REJECTED" ? (
+                    <>
+                      Your company verification was rejected. Please contact support for more information.
+                    </>
+                  ) : (
+                    <>
+                      Your company must be fully verified before you can post projects. Please complete the verification process.
+                      <br />
+                      <Button
+                        onClick={() => navigate("/company-verification")}
+                        className="mt-4 bg-yellow-600 hover:bg-yellow-700 text-white"
+                      >
+                        Complete Verification
+                      </Button>
+                    </>
+                  )}
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          )}
+
+          {!isCheckingStatus && companyStatus === "FULLY_VERIFIED" && (
+            <Alert className="mb-6 bg-green-50 border-green-200">
+              <CheckCircle className="h-4 w-4 text-green-600" />
+              <AlertDescription className="text-green-800">
+                Your company is fully verified! You can now post investment opportunities.
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Progress tracker */}
           <div className="flex items-center justify-between mb-8 sm:mb-12 w-full">
             <div className="flex flex-col items-center flex-1">
@@ -174,7 +260,7 @@ const ListProject = () => {
                   variant="outline" 
                   className="w-full sm:w-auto order-2 sm:order-1"
                   onClick={() => setStep((prev) => (prev === 3 ? 2 : 1) as 1 | 2 | 3)}
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || companyStatus !== "FULLY_VERIFIED"}
                 >
                   Back
                 </Button>
@@ -182,7 +268,7 @@ const ListProject = () => {
               <Button 
                 onClick={handleNextStep}
                 className="bg-lebanese-navy hover:bg-opacity-90 w-full sm:w-auto order-1 sm:order-2"
-                disabled={isSubmitting}
+                disabled={isSubmitting || companyStatus !== "FULLY_VERIFIED"}
               >
                 {isSubmitting ? 'Submitting...' : step === 3 ? 'Submit Project' : 'Next Step'}
                 {!isSubmitting && <ArrowRight className="ml-2 h-4 w-4" />}
