@@ -417,10 +417,13 @@ const AdminDashboard = () => {
         )
       );
       
-      // Refetch notifications to get updated data from server (without page reload)
-      if (refetchNotifications) {
-        refetchNotifications();
-      }
+      // Refetch notifications after a short delay to ensure backend has persisted
+      // This ensures the notification stays visible with "Approved" status
+      setTimeout(() => {
+        if (refetchNotifications) {
+          refetchNotifications();
+        }
+      }, 500);
     } catch (ex: any) {
       console.error("Error approving verification:", ex.message);
       toast({
@@ -459,10 +462,13 @@ const AdminDashboard = () => {
       setRejectingId(null);
       setRejectionReason("");
       
-      // Refetch notifications to get updated data from server (without page reload)
-      if (refetchNotifications) {
-        refetchNotifications();
-      }
+      // Refetch notifications after a short delay to ensure backend has persisted
+      // This ensures the notification stays visible with "Rejected" status
+      setTimeout(() => {
+        if (refetchNotifications) {
+          refetchNotifications();
+        }
+      }, 500);
     } catch (ex: any) {
       console.error("Error rejecting verification:", ex.message);
       toast({

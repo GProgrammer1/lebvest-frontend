@@ -244,9 +244,8 @@ const CompanyDashboard = () => {
       <Navbar />
       <main className="flex-grow p-6 bg-gray-50">
         <div className="max-w-7xl mx-auto">
-          {/* Verification Banner */}
-          {/* Temporary test: Change to true to test if banner renders */}
-          {(needsVerification || true) && (
+          {/* Verification Banner - Only show for APPROVED or PENDING_DOCS, not FULLY_VERIFIED */}
+          {needsVerification && (
             <div className="mb-6 bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-md">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div className="flex items-center">
@@ -280,10 +279,7 @@ const CompanyDashboard = () => {
                 Find potential investors for your projects
               </p>
             </div>
-            <Button 
-              onClick={() => navigate("/company-settings")}
-              className="mt-4 md:mt-0 bg-lebanese-navy hover:bg-opacity-90"
-            >
+            <Button className="mt-4 md:mt-0 bg-lebanese-navy hover:bg-opacity-90">
               Update Company Profile
             </Button>
           </div>
