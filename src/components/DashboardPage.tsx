@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { InvestorDashboard } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -6,13 +6,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Link, useNavigate } from "react-router-dom";
-import {
-  markNotificationAsRead,
-  InvestorNotificationDto,
-} from "@/api/investor";
+import { useMarkNotificationAsRead, useAcceptedInvestmentRequests } from "@/hooks/useInvestorQueries";
 import { useToast } from "@/components/ui/use-toast";
-import apiClient from "@/api/common/apiClient";
-import { ResponsePayload } from "@/lib/types";
+import { PayoutHistory } from "@/components/PayoutHistory";
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { useCreatePayoutRequest } from "@/hooks/usePayoutQueries";
 
 interface DashboardPageProps {
   dashboard: InvestorDashboard;
@@ -48,47 +46,9 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ dashboard }) => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [notificationsState, setNotificationsState] = useState(notifications);
-  const [acceptedRequests, setAcceptedRequests] = useState<any[]>([]);
-  const [loadingRequests, setLoadingRequests] = useState(false);
-
-  const fetchAcceptedRequests = async () => {
-    setLoadingRequests(true);
-    try {
-      const response = await apiClient.get<ResponsePayload>(
-        "/investors/me/investment-requests/accepted"
-      );
-      if (response.data.status === 200) {
-        const allRequests = response.data.data.requests || [];
-        // Filter out paid requests - only show accepted but not yet paid
-        const unpaidRequests = allRequests.filter(
-          (request: any) => request.status !== "PAID"
-        );
-        setAcceptedRequests(unpaidRequests);
-      }
-    } catch (error) {
-      console.error("Error fetching accepted requests:", error);
-      setAcceptedRequests([]);
-    } finally {
-      setLoadingRequests(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchAcceptedRequests();
-    
-    // Refresh when page becomes visible (e.g., user returns from payment page)
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        fetchAcceptedRequests();
-      }
-    };
-    
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, []);
+  const { data: acceptedRequests = [], isLoading: loadingRequests } = useAcceptedInvestmentRequests();
+  const markAsRead = useMarkNotificationAsRead();
+  const createPayoutRequest = useCreatePayoutRequest();
 
   const acceptedRequestsCount = acceptedRequests.length;
 
@@ -98,9 +58,9 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ dashboard }) => {
 
   const handleMarkAsRead = async (notificationId: number) => {
     try {
-      const updated = await markNotificationAsRead(notificationId);
+      await markAsRead.mutateAsync(notificationId);
       setNotificationsState((prev) =>
-        prev.map((n) => (n.id === notificationId ? updated : n))
+        prev.map((n) => (n.id === notificationId ? { ...n, read: true } : n))
       );
       toast({
         title: "Success",
@@ -115,6 +75,35 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ dashboard }) => {
       });
     }
   };
+
+  // Prepare chart data
+  const portfolioData = investorInvestments.map((inv) => ({
+    name: inv.investment?.title?.slice(0, 20) || `Investment #${inv.id}`,
+    invested: inv.amount,
+    current: inv.currentValue,
+    return: inv.currentValue - inv.amount,
+  }));
+
+  const categoryData = investorInvestments.reduce((acc, inv) => {
+    const category = inv.investment?.category || "Other";
+    acc[category] = (acc[category] || 0) + inv.amount;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const pieData = Object.entries(categoryData).map(([name, value]) => ({
+    name: name.replace(/_/g, " "),
+    value,
+  }));
+
+  const COLORS = ["#1e3a5f", "#2d5a87", "#4a90c2", "#6bb3e0", "#8cc8f0"];
+
+  const monthlyReturns = investorInvestments.map((inv) => {
+    const months = Math.max(1, Math.floor((Date.now() - new Date(inv.investedAt).getTime()) / (1000 * 60 * 60 * 24 * 30)));
+    return {
+      name: inv.investment?.title?.slice(0, 15) || `Inv #${inv.id}`,
+      return: months > 0 ? ((inv.currentValue - inv.amount) / inv.amount / months) * 100 : 0,
+    };
+  });
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -224,9 +213,79 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ dashboard }) => {
             )}
           </TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
+          <TabsTrigger value="payouts">Payout History</TabsTrigger>
         </TabsList>
 
         <TabsContent value="portfolio" className="space-y-8">
+          {/* Charts Section */}
+          {investorInvestments.length > 0 && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Portfolio Performance</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={portfolioData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
+                      <YAxis />
+                      <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                      <Legend />
+                      <Bar dataKey="invested" fill="#1e3a5f" name="Invested" />
+                      <Bar dataKey="current" fill="#4a90c2" name="Current Value" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Portfolio by Category</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={pieData}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                        outerRadius={100}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        {pieData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+
+              <Card className="lg:col-span-2">
+                <CardHeader>
+                  <CardTitle>Investment Returns Over Time</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <LineChart data={monthlyReturns}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis />
+                      <Tooltip formatter={(value: number) => `${value.toFixed(2)}%`} />
+                      <Legend />
+                      <Line type="monotone" dataKey="return" stroke="#1e3a5f" strokeWidth={2} name="Monthly Return %" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
           <div>
             <h2 className="text-xl font-semibold mb-4">Your Investments</h2>
             <div className="grid grid-cols-1 gap-6">
@@ -307,6 +366,39 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ dashboard }) => {
                                 : "0.0"}
                               %
                             </p>
+                            {(investment as any).maturityDate && (
+                              <p className="text-xs text-gray-500 mt-1">
+                                Maturity: {formatDate((investment as any).maturityDate)}
+                              </p>
+                            )}
+                            {(investment as any).isMatured && !(investment as any).payoutRequested && (
+                              <Button
+                                size="sm"
+                                className="mt-2"
+                                onClick={async () => {
+                                  try {
+                                    await createPayoutRequest.mutateAsync(investment.id);
+                                    toast({
+                                      title: "Success",
+                                      description: "Payout request created successfully",
+                                    });
+                                  } catch (error: any) {
+                                    toast({
+                                      title: "Error",
+                                      description: error.response?.data?.message || "Failed to create payout request",
+                                      variant: "destructive",
+                                    });
+                                  }
+                                }}
+                              >
+                                Request Payout
+                              </Button>
+                            )}
+                            {(investment as any).payoutRequested && (
+                              <Badge className="mt-2" variant="outline">
+                                Payout Requested
+                              </Badge>
+                            )}
                           </div>
                         </div>
 
@@ -727,6 +819,10 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ dashboard }) => {
               ))}
             </div>
           </div>
+        </TabsContent>
+
+        <TabsContent value="payouts">
+          <PayoutHistory userType="investor" />
         </TabsContent>
       </Tabs>
 

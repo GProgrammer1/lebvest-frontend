@@ -98,10 +98,27 @@ const InvestmentCard: React.FC<InvestmentCardProps> = ({ investment }) => {
         
         <Progress value={progressPercentage} className="h-2 mb-1" />
         
-        <div className="flex justify-between text-sm text-gray-600 mb-4">
+        <div className="flex justify-between text-sm text-gray-600 mb-2">
           <span>{formatCurrency(investment.raisedAmount)} raised</span>
           <span>{progressPercentage.toFixed(0)}%</span>
         </div>
+        
+        <div className="text-xs text-gray-500 mb-2">
+          <span className="font-medium">Funded: </span>
+          <span>{progressPercentage.toFixed(1)}%</span>
+          {(investment as any).fundingStatus && (
+            <Badge className="ml-2 text-xs" variant="outline">
+              {(investment as any).fundingStatus}
+            </Badge>
+          )}
+        </div>
+        
+        {(investment as any).maturityDate && (
+          <div className="text-xs text-gray-500 mb-2">
+            <span className="font-medium">Maturity: </span>
+            <span>{new Date((investment as any).maturityDate).toLocaleDateString()}</span>
+          </div>
+        )}
         
         <div className="flex justify-between items-center">
           <div className="text-sm">

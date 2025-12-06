@@ -42,7 +42,7 @@ const Investments = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Debounced search suggestions
+  // Debounced search suggestions using new suggestions endpoint
   useEffect(() => {
     if (!searchQuery.trim()) {
       setSearchSuggestions([]);
@@ -52,10 +52,67 @@ const Investments = () => {
 
     const timeoutId = setTimeout(async () => {
       try {
+        // First try the new suggestions endpoint
+        try {
+          const suggestionsResponse = await apiClient.get<ResponsePayload>(
+            `/api/investments/search/suggestions?q=${encodeURIComponent(searchQuery.trim())}`
+          );
+          if (suggestionsResponse.data.status === 200 && suggestionsResponse.data.data.suggestions) {
+            // If we get text suggestions, use them to search
+            const suggestionText = suggestionsResponse.data.data.suggestions[0];
+            if (suggestionText) {
+              const params = new URLSearchParams();
+              params.append("q", suggestionText);
+              params.append("page", "0");
+              params.append("size", "5");
+              const response = await apiClient.get<ResponsePayload>(`/investments/search?${params.toString()}`);
+              
+              if (response.data.status === 200) {
+                const data = response.data.data;
+                const mappedSuggestions: Investment[] = (data.investments || []).map((inv: any) => ({
+            id: inv.id?.toString() || "",
+            title: inv.title || "",
+            companyName: inv.companyName || "",
+            description: inv.description || "",
+            category: inv.category?.toLowerCase() || "",
+            sector: inv.sector?.toLowerCase() || "",
+            location: inv.location?.toLowerCase().replace(/\s+/g, '_') || "",
+            riskLevel: inv.riskLevel?.toLowerCase() || "medium",
+            expectedReturn: inv.expectedReturn || 0,
+            minInvestment: Number(inv.minInvestment || 0),
+            targetAmount: Number(inv.targetAmount || 0),
+            raisedAmount: Number(inv.raisedAmount || 0),
+            deadline: inv.deadline || "",
+            imageUrl: inv.imageUrl || "",
+            investmentType: inv.investmentType?.toLowerCase() || "",
+            duration: inv.durationMonths || 0,
+            fundingStage: inv.fundingStage || "",
+            highlights: inv.highlights || [],
+            financials: [],
+            team: [],
+            documents: [],
+            updates: [],
+            aiPrediction: {
+              profitPrediction: inv.expectedReturn || 0,
+              confidenceScore: 75,
+              riskAssessment: `This investment has a ${inv.riskLevel?.toLowerCase() || 'medium'} risk level.`
+            }
+          }));
+          setSearchSuggestions(mappedSuggestions);
+          setShowSuggestions(true);
+          return;
+        }
+      } catch (suggestionError) {
+        // Fallback to regular search if suggestions endpoint fails
+        console.log("Suggestions endpoint not available, using regular search");
+      }
+      
+      // Fallback to regular search
+      try {
         const params = new URLSearchParams();
         params.append("q", searchQuery.trim());
         params.append("page", "0");
-        params.append("size", "5"); // Only get 5 suggestions
+        params.append("size", "5");
         const response = await apiClient.get<ResponsePayload>(`/investments/search?${params.toString()}`);
         
         if (response.data.status === 200) {

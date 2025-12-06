@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { Helmet } from "react-helmet";
 import { useNavigate } from "react-router-dom";
-import apiClient from "@/api/common/apiClient";
-import { ResponsePayload } from "@/lib/types";
+import { useCompanyDashboard, useCompanyProfile, useCompanyInvestors, useCompanyInvestmentRequests, useAcceptInvestmentRequest, useRejectInvestmentRequest } from "@/hooks/useCompanyQueries";
+import { TableSkeleton, CardSkeleton } from "@/components/LoadingSkeleton";
+import { useToast } from "@/components/ui/use-toast";
 import {
   Card,
   CardContent,
@@ -34,6 +35,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
+import { PayoutHistory } from "@/components/PayoutHistory";
 
 // Mock data for investors
 const mockInvestors = [
@@ -78,85 +80,35 @@ const mockInvestors = [
 
 const CompanyDashboard = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [riskFilter, setRiskFilter] = useState("");
   const [minPortfolio, setMinPortfolio] = useState("");
   const [sectorFilter, setSectorFilter] = useState("");
-  const [dashboardData, setDashboardData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [investors, setInvestors] = useState<any[]>([]);
-  const [investorsLoading, setInvestorsLoading] = useState(false);
   const [investorsPage, setInvestorsPage] = useState(0);
-  const [investorsTotalPages, setInvestorsTotalPages] = useState(0);
-  const [investorsTotalElements, setInvestorsTotalElements] = useState(0);
-  const [needsVerification, setNeedsVerification] = useState(false);
-  const [investmentRequests, setInvestmentRequests] = useState<any[]>([]);
-  const [investmentRequestsLoading, setInvestmentRequestsLoading] = useState(false);
   const [investmentRequestsFilter, setInvestmentRequestsFilter] = useState("PENDING");
   const [rejectingRequestId, setRejectingRequestId] = useState<number | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
-  const [acceptingRequestId, setAcceptingRequestId] = useState<number | null>(null);
 
-  useEffect(() => {
-    const fetchDashboard = async () => {
-      try {
-        // First check company profile status
-        const profileResponse = await apiClient.get<ResponsePayload>("/companies/me/profile");
-        console.log("Full profile response:", profileResponse.data);
-        const profile = profileResponse.data?.data?.profile;
-        console.log("Profile object:", profile);
-        const companyStatus = profile?.status;
-        console.log("Company status:", companyStatus);
-        
-        // Check if company is approved (step 1) but not fully verified (step 2)
-        // Status "APPROVED" means admin approved step 1, but step 2 verification is still needed
-        // Status "FULLY_VERIFIED" means both steps are complete
-        const shouldShowVerification = companyStatus === "APPROVED" || companyStatus === "PENDING_DOCS";
-        console.log("Should show verification button:", shouldShowVerification);
-        setNeedsVerification(shouldShowVerification);
-        
-        const response = await apiClient.get<ResponsePayload>("/companies/me/dashboard");
-        if (response.data.status === 200) {
-          setDashboardData(response.data.data.dashboard);
-        }
-      } catch (error) {
-        console.error("Error fetching company dashboard:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  // React Query hooks
+  const { data: profile } = useCompanyProfile();
+  const { data: dashboardData, isLoading: loading } = useCompanyDashboard();
+  const { data: investorsData, isLoading: investorsLoading } = useCompanyInvestors({
+    query: searchQuery,
+    minPortfolio: minPortfolio !== "all" ? minPortfolio : undefined,
+    riskLevel: riskFilter !== "all" ? riskFilter : undefined,
+    category: sectorFilter !== "all" ? sectorFilter : undefined,
+    page: investorsPage,
+    size: 20,
+  });
+  const { data: investmentRequests = [], isLoading: investmentRequestsLoading } = useCompanyInvestmentRequests(investmentRequestsFilter);
+  const acceptRequest = useAcceptInvestmentRequest();
+  const rejectRequest = useRejectInvestmentRequest();
 
-    fetchDashboard();
-  }, [navigate]);
-
-  useEffect(() => {
-    const fetchInvestors = async () => {
-      setInvestorsLoading(true);
-      try {
-        const params = new URLSearchParams();
-        if (searchQuery) params.append("query", searchQuery);
-        if (minPortfolio && minPortfolio !== "all") params.append("minPortfolio", minPortfolio);
-        if (riskFilter && riskFilter !== "all") params.append("riskLevel", riskFilter.toUpperCase());
-        if (sectorFilter && sectorFilter !== "all") params.append("category", sectorFilter.toUpperCase().replace(/\s+/g, '_'));
-        params.append("page", investorsPage.toString());
-        params.append("size", "20");
-
-        const response = await apiClient.get<ResponsePayload>(`/companies/me/investors?${params.toString()}`);
-        if (response.data.status === 200) {
-          const data = response.data.data;
-          setInvestors(data.investors || []);
-          setInvestorsTotalPages(data.totalPages || 0);
-          setInvestorsTotalElements(data.totalElements || 0);
-        }
-      } catch (error) {
-        console.error("Error fetching investors:", error);
-      } finally {
-        setInvestorsLoading(false);
-      }
-    };
-
-    fetchInvestors();
-  }, [searchQuery, riskFilter, minPortfolio, sectorFilter, investorsPage]);
+  const needsVerification = profile?.status === "APPROVED" || profile?.status === "PENDING_DOCS";
+  const investors = investorsData?.investors || [];
+  const investorsTotalPages = investorsData?.totalPages || 0;
+  const investorsTotalElements = investorsData?.totalElements || 0;
 
   // Reset to first page when filters change
   useEffect(() => {
@@ -176,74 +128,45 @@ const CompanyDashboard = () => {
     (req) => req.status === "PENDING"
   ).length;
 
-  // Fetch investment requests
-  useEffect(() => {
-    const fetchInvestmentRequests = async () => {
-      setInvestmentRequestsLoading(true);
-      try {
-        const response = await apiClient.get<ResponsePayload>(
-          `/companies/me/investment-requests?status=${investmentRequestsFilter}`
-        );
-        if (response.data.status === 200) {
-          setInvestmentRequests(response.data.data.requests || []);
-        }
-      } catch (error) {
-        console.error("Error fetching investment requests:", error);
-        setInvestmentRequests([]);
-      } finally {
-        setInvestmentRequestsLoading(false);
-      }
-    };
-
-    fetchInvestmentRequests();
-  }, [investmentRequestsFilter]);
-
   const handleAcceptRequest = async (requestId: number) => {
     try {
-      const response = await apiClient.post<ResponsePayload>(
-        `/companies/me/investment-requests/${requestId}/accept`,
-        {}
-      );
-      if (response.data.status === 200) {
-        // Refresh requests
-        const refreshResponse = await apiClient.get<ResponsePayload>(
-          `/companies/me/investment-requests?status=${investmentRequestsFilter}`
-        );
-        if (refreshResponse.data.status === 200) {
-          setInvestmentRequests(refreshResponse.data.data.requests || []);
-        }
-        setAcceptingRequestId(null);
-      }
+      await acceptRequest.mutateAsync(requestId);
+      toast({
+        title: "Success",
+        description: "Investment request accepted successfully",
+      });
     } catch (error: any) {
-      console.error("Error accepting request:", error);
-      alert(error.response?.data?.message || "Failed to accept request");
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to accept request",
+        variant: "destructive",
+      });
     }
   };
 
   const handleRejectRequest = async (requestId: number) => {
     if (!rejectionReason.trim()) {
-      alert("Please provide a reason for rejection");
+      toast({
+        title: "Required",
+        description: "Please provide a reason for rejection",
+        variant: "destructive",
+      });
       return;
     }
     try {
-      const response = await apiClient.post<ResponsePayload>(
-        `/companies/me/investment-requests/${requestId}/reject`,
-        { reason: rejectionReason }
-      );
-      if (response.data.status === 200) {
-        // Refresh requests
-        const refreshResponse = await apiClient.get<ResponsePayload>(
-          `/companies/me/investment-requests?status=${investmentRequestsFilter}`
-        );
-        if (refreshResponse.data.status === 200) {
-          setInvestmentRequests(refreshResponse.data.data.requests || []);
-        }
-        setRejectingRequestId(null);
-        setRejectionReason("");
-      }
+      await rejectRequest.mutateAsync({ requestId, reason: rejectionReason });
+      setRejectingRequestId(null);
+      setRejectionReason("");
+      toast({
+        title: "Success",
+        description: "Investment request rejected",
+      });
     } catch (error: any) {
-      console.error("Error rejecting request:", error);
-      alert(error.response?.data?.message || "Failed to reject request");
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to reject request",
+        variant: "destructive",
+      });
     }
   };
 
@@ -318,6 +241,7 @@ const CompanyDashboard = () => {
                 )}
               </TabsTrigger>
               <TabsTrigger value="analytics">Analytics</TabsTrigger>
+              <TabsTrigger value="payouts">Payout Management</TabsTrigger>
             </TabsList>
 
             <TabsContent value="investors">
@@ -434,7 +358,7 @@ const CompanyDashboard = () => {
                         {investorsLoading ? (
                           <TableRow>
                             <TableCell colSpan={5} className="text-center py-6">
-                              Loading investors...
+                              <TableSkeleton rows={3} cols={5} />
                             </TableCell>
                           </TableRow>
                         ) : investors.length > 0 ? (
@@ -553,8 +477,9 @@ const CompanyDashboard = () => {
                     </Button>
                   </div>
                   {loading ? (
-                    <div className="text-center py-12">
-                      <div>Loading...</div>
+                    <div className="space-y-4">
+                      <CardSkeleton />
+                      <CardSkeleton />
                     </div>
                   ) : dashboardData?.recentInvestments && dashboardData.recentInvestments.length > 0 ? (
                     <div className="space-y-4">
@@ -719,13 +644,10 @@ const CompanyDashboard = () => {
                                       variant="default"
                                       size="sm"
                                       className="bg-green-600 hover:bg-green-700"
-                                      onClick={() => {
-                                        setAcceptingRequestId(request.id);
-                                        handleAcceptRequest(request.id);
-                                      }}
-                                      disabled={acceptingRequestId === request.id}
+                                      onClick={() => handleAcceptRequest(request.id)}
+                                      disabled={acceptRequest.isPending}
                                     >
-                                      {acceptingRequestId === request.id ? "Accepting..." : "Accept"}
+                                      {acceptRequest.isPending ? "Accepting..." : "Accept"}
                                     </Button>
                                     <Button
                                       variant="destructive"

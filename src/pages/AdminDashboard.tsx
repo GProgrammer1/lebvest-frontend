@@ -53,6 +53,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { Circle } from "lucide-react";
 import ViewDocumentsDialog from "@/components/ViewDocumentsDialog";
 import { AdminNotification } from "@/lib/types";
+import { PayoutHistory } from "@/components/PayoutHistory";
+import { useAdminAnalytics, usePendingInvestorApprovals, useUpdateInvestorKyc } from "@/hooks/useAdminQueries";
+import { useAdminPayouts } from "@/hooks/usePayoutQueries";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 // Mock data for users
 const mockUsers = [
@@ -1258,111 +1264,7 @@ const AdminDashboard = () => {
             </TabsContent>
 
             <TabsContent value="reports">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-xl">Analytics & Reports</CardTitle>
-                  <CardDescription>
-                    Platform performance metrics and reports
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-lg">
-                          User Statistics
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-4">
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Total Users:</span>
-                            <span className="font-medium">
-                              {mockMetrics.totalUsers}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">
-                              Active Investors:
-                            </span>
-                            <span className="font-medium">
-                              {mockMetrics.activeInvestors}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">
-                              Registered Companies:
-                            </span>
-                            <span className="font-medium">
-                              {mockMetrics.registeredCompanies}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">
-                              User Growth (Monthly):
-                            </span>
-                            <span className="font-medium text-green-600">
-                              {mockMetrics.monthlyGrowth.users}
-                            </span>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-lg">
-                          Project Statistics
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-4">
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">
-                              Total Projects:
-                            </span>
-                            <span className="font-medium">
-                              {mockMetrics.totalProjects}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">
-                              Active Projects:
-                            </span>
-                            <span className="font-medium">
-                              {mockMetrics.activeProjects}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">
-                              Total Investments:
-                            </span>
-                            <span className="font-medium">
-                              {mockMetrics.totalInvestments}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">
-                              Investment Growth (Monthly):
-                            </span>
-                            <span className="font-medium text-green-600">
-                              {mockMetrics.monthlyGrowth.investments}
-                            </span>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-
-                  <div className="flex justify-end space-x-4 mt-6">
-                    <Button variant="outline">Export User Report</Button>
-                    <Button variant="outline">Export Investment Report</Button>
-                    <Button className="bg-lebanese-navy hover:bg-opacity-90">
-                      Generate Full Analytics
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+              <EnhancedAnalytics />
             </TabsContent>
 
             <TabsContent value="settings">
@@ -1811,6 +1713,14 @@ const AdminDashboard = () => {
                 </div>
               </div>
             </TabsContent>
+
+            <TabsContent value="payouts">
+              <PayoutHistory userType="admin" />
+            </TabsContent>
+
+            <TabsContent value="kyc">
+              <InvestorKycManagement />
+            </TabsContent>
           </Tabs>
         </div>
       </main>
@@ -1821,6 +1731,276 @@ const AdminDashboard = () => {
         documentUrls={selectedDocuments}
         title={selectedDocumentTitle}
       />
+    </div>
+  );
+};
+
+// Enhanced Analytics Component
+const EnhancedAnalytics = () => {
+  const { data: analytics, isLoading } = useAdminAnalytics();
+
+  if (isLoading) {
+    return <div>Loading analytics...</div>;
+  }
+
+  if (!analytics) {
+    return <div>No analytics data available</div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold">Enhanced Analytics</h2>
+      
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium">Total Investors</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">{analytics.totalInvestors}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium">Total Companies</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">{analytics.totalCompanies}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium">Total Investments</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">{analytics.totalInvestments}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium">Invested Today</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold">
+              ${analytics.totalInvestedToday.toLocaleString()}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Top Projects</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Project</TableHead>
+                  <TableHead>Company</TableHead>
+                  <TableHead>Raised</TableHead>
+                  <TableHead>Investors</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {analytics.topProjects.slice(0, 5).map((project) => (
+                  <TableRow key={project.id}>
+                    <TableCell className="font-medium">{project.title}</TableCell>
+                    <TableCell>{project.companyName}</TableCell>
+                    <TableCell>
+                      ${project.raisedAmount.toLocaleString()} / ${project.targetAmount.toLocaleString()}
+                    </TableCell>
+                    <TableCell>{project.investorCount}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Queue Status</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex justify-between">
+                <span>Pending Company Approvals</span>
+                <Badge>{analytics.pendingCompanyApprovals}</Badge>
+              </div>
+              <div className="flex justify-between">
+                <span>Pending Investor Approvals</span>
+                <Badge>{analytics.pendingInvestorApprovals}</Badge>
+              </div>
+              <div className="flex justify-between">
+                <span>Pending Payouts</span>
+                <Badge>{analytics.pendingPayouts}</Badge>
+              </div>
+              <div className="flex justify-between">
+                <span>Pending Returns</span>
+                <Badge>{analytics.pendingReturns}</Badge>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Investments by Category</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {Object.entries(analytics.investmentsByCategory).map(([category, count]) => (
+                <div key={category} className="flex justify-between">
+                  <span>{category}</span>
+                  <Badge>{count}</Badge>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Investments by Risk Level</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {Object.entries(analytics.investmentsByRiskLevel).map(([risk, count]) => (
+                <div key={risk} className="flex justify-between">
+                  <span>{risk}</span>
+                  <Badge>{count}</Badge>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+// Investor KYC Management Component
+const InvestorKycManagement = () => {
+  const { data: pendingInvestors, isLoading } = usePendingInvestorApprovals(0, 20);
+  const updateKyc = useUpdateInvestorKyc();
+  const [selectedInvestor, setSelectedInvestor] = useState<any>(null);
+  const [classification, setClassification] = useState<"RETAIL" | "QUALIFIED" | "INSTITUTIONAL">("RETAIL");
+  const [kycNotes, setKycNotes] = useState("");
+  const { toast } = useToast();
+
+  const handleUpdateKyc = async () => {
+    if (!selectedInvestor) return;
+    try {
+      await updateKyc.mutateAsync({
+        investorId: selectedInvestor.id,
+        request: { classification, kycNotes },
+      });
+      toast({
+        title: "Success",
+        description: "Investor KYC updated successfully",
+      });
+      setSelectedInvestor(null);
+      setKycNotes("");
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to update KYC",
+        variant: "destructive",
+      });
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold">Investor KYC Management</h2>
+      {isLoading ? (
+        <div>Loading...</div>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>Pending Investor Approvals</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pendingInvestors?.data?.investors?.map((investor: any) => (
+                  <TableRow key={investor.id}>
+                    <TableCell>{investor.name}</TableCell>
+                    <TableCell>{investor.email}</TableCell>
+                    <TableCell>
+                      <Badge variant={investor.enabled ? "default" : "destructive"}>
+                        {investor.enabled ? "Active" : "Pending"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              setSelectedInvestor(investor);
+                              setClassification("RETAIL");
+                              setKycNotes("");
+                            }}
+                          >
+                            Update KYC
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Update Investor KYC</DialogTitle>
+                          </DialogHeader>
+                          <div className="space-y-4">
+                            <div>
+                              <Label>Classification</Label>
+                              <Select
+                                value={classification}
+                                onValueChange={(value) =>
+                                  setClassification(value as "RETAIL" | "QUALIFIED" | "INSTITUTIONAL")
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="RETAIL">Retail</SelectItem>
+                                  <SelectItem value="QUALIFIED">Qualified</SelectItem>
+                                  <SelectItem value="INSTITUTIONAL">Institutional</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div>
+                              <Label>KYC Notes</Label>
+                              <Textarea
+                                value={kycNotes}
+                                onChange={(e) => setKycNotes(e.target.value)}
+                                placeholder="Add notes about this investor..."
+                              />
+                            </div>
+                            <Button onClick={handleUpdateKyc}>Update</Button>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };
