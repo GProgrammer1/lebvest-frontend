@@ -208,6 +208,7 @@ const AdminDashboard = () => {
 
   const [usersPage, setUsersPage] = useState(0);
   const [projectsPage, setProjectsPage] = useState(0);
+  const [activeTab, setActiveTab] = useState("users");
 
   // React Query hooks for users - Use useMemo to prevent unnecessary re-renders
   const usersParams = useMemo(() => ({
@@ -239,7 +240,7 @@ const AdminDashboard = () => {
     }
   }, [usersError]);
 
-  // React Query hooks for projects - Use useMemo
+  // React Query hooks for projects - LAZY LOAD: Only fetch when projects tab is active
   const projectsParams = useMemo(() => ({
     status: projectStatusFilter === "All" 
       ? "ALL" as const
@@ -256,7 +257,10 @@ const AdminDashboard = () => {
     size: 20,
   }), [projectStatusFilter, projectCategoryFilter, projectSearchQuery, projectsPage]);
 
-  const { data: projectsData, isLoading: projectsLoading, isFetching: projectsFetching, error: projectsError } = useProjects(projectsParams);
+  // Only enable projects query when projects tab is active
+  const { data: projectsData, isLoading: projectsLoading, isFetching: projectsFetching, error: projectsError } = useProjects(projectsParams, {
+    enabled: activeTab === "projects" // Only fetch when projects tab is active
+  });
   
   // Log errors for debugging
   useEffect(() => {
@@ -872,7 +876,7 @@ const AdminDashboard = () => {
             </Card>
           </div>
 
-          <Tabs defaultValue="users" className="w-full">
+          <Tabs defaultValue="users" value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="mb-6">
               <TabsTrigger value="users">User Management</TabsTrigger>
               <TabsTrigger value="projects">Project Moderation</TabsTrigger>

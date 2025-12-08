@@ -69,15 +69,16 @@ export const useUsers = (params: FetchUsersParams = {}) => {
   });
 };
 
-export const useProjects = (params: FetchProjectsParams = {}) => {
+export const useProjects = (params: FetchProjectsParams = {}, options?: { enabled?: boolean }) => {
   return useQuery({
     queryKey: adminKeys.projects(params),
     queryFn: () => fetchProjects(params),
+    enabled: options?.enabled !== false, // Default to true, but can be disabled
     staleTime: 1000 * 60, // 1 minute
     gcTime: 1000 * 60 * 5, // 5 minutes (formerly cacheTime)
     retry: 2, // Retry failed requests 2 times
     retryDelay: 1000, // Wait 1 second between retries
     refetchOnWindowFocus: false, // Don't refetch on window focus
-    refetchOnMount: true, // Always refetch on mount
+    refetchOnMount: false, // Don't refetch on mount if data exists (use cache)
   });
 };
