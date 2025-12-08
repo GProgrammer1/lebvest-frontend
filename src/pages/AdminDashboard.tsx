@@ -3,13 +3,208 @@ import { Helmet } from "react-helmet";
 import {
   Card,
   CardContent,
-// ... imports ...
-  useUsers, useProjects, adminKeys
-} from "@/hooks/useAdminQueries";
-import { useAdminPayouts } from "@/hooks/usePayoutQueries";
-// ... imports ...
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import {
+  Search,
+  Users,
+  ShieldAlert,
+  FileText,
+  BarChart4,
+  CheckCircle,
+  AlertCircle,
+  XCircle,
+  Ban,
+  Loader2,
+} from "lucide-react";
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Link } from "react-router-dom";
 
-// ...
+import { Checkbox } from "@radix-ui/react-checkbox";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import apiClient from "@/api/common/apiClient";
+import { ResponsePayload } from "@/lib/types";
+import { toast } from "@/hooks/use-toast";
+import { getClaim } from "@/util/jwtUtil";
+import { useWebSocket } from "@/hooks/useWebSocket";
+import { useAuth } from "@/hooks/useAuth";
+import { Circle } from "lucide-react";
+import ViewDocumentsDialog from "@/components/ViewDocumentsDialog";
+import { AdminNotification } from "@/lib/types";
+import { PayoutHistory } from "@/components/PayoutHistory";
+import { useAdminAnalytics, usePendingInvestorApprovals, useUpdateInvestorKyc, useUsers, useProjects, adminKeys } from "@/hooks/useAdminQueries";
+import { useAdminPayouts } from "@/hooks/usePayoutQueries";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+
+// Mock data for users
+const mockUsers = [
+  {
+    id: 1,
+    name: "John Smith",
+    email: "john@example.com",
+    role: "Investor",
+    status: "active",
+    joinDate: "2023-05-15",
+  },
+  {
+    id: 2,
+    name: "Tech Innovations LLC",
+    email: "contact@techinno.com",
+    role: "Company",
+    status: "active",
+    joinDate: "2023-06-22",
+  },
+  {
+    id: 3,
+    name: "Sarah Johnson",
+    email: "sarah@example.com",
+    role: "Investor",
+    status: "inactive",
+    joinDate: "2023-07-10",
+  },
+  {
+    id: 4,
+    name: "Cedar Investments",
+    email: "info@cedarinvest.com",
+    role: "Company",
+    status: "active",
+    joinDate: "2023-08-05",
+  },
+  {
+    id: 5,
+    name: "Admin User",
+    email: "admin@lebvest.com",
+    role: "admin",
+    status: "active",
+    joinDate: "2023-04-01",
+  },
+  {
+    id: 6,
+    name: "Rachel Green",
+    email: "rachel@example.com",
+    role: "Investor",
+    status: "pending",
+    joinDate: "2023-09-18",
+  },
+];
+
+// Mock data for projects
+const mockProjects = [
+  {
+    id: "project1",
+    name: "Beirut Tech Hub",
+    company: "Tech Innovations LLC",
+    category: "technology",
+    status: "pending_review",
+    submittedDate: "2023-06-30",
+  },
+  {
+    id: "project2",
+    name: "Cedar Heights Residences",
+    company: "Cedar Investments",
+    category: "real_estate",
+    status: "pending_review",
+    submittedDate: "2023-08-10",
+  },
+  {
+    id: "project3",
+    name: "Sustainable Agriculture Initiative",
+    company: "Green Fields Co.",
+    category: "agriculture",
+    status: "rejected",
+    submittedDate: "2023-07-22",
+  },
+  {
+    id: "project4",
+    name: "Education Tech Platform",
+    company: "EduLearn",
+    category: "education",
+    status: "active",
+    submittedDate: "2023-09-05",
+  },
+];
+
+// Mock metrics
+const mockMetrics = {
+  totalUsers: 782,
+  activeInvestors: 516,
+  registeredCompanies: 124,
+  totalProjects: 87,
+  activeProjects: 42,
+  totalInvestments: "$4.8M",
+  monthlyGrowth: {
+    users: "+8.5%",
+    projects: "+12.3%",
+    investments: "+5.7%",
+  },
+};
+
+const AdminDashboard = () => {
+  const { isAuthenticated, role } = useAuth();
+  const isAdmin = role === 'Admin';
+  const queryClient = useQueryClient();
+  
+  const [userSearchQuery, setUserSearchQuery] = useState("");
+  const [userRoleFilter, setUserRoleFilter] = useState<
+    "All" | "Investor" | "Company" | "Admin"
+  >("All");
+  const [userStatusFilter, setUserStatusFilter] = useState<
+    "All" | "active" | "inactive" | "pending"
+  >("All");
+
+  // Projects
+  const [projectCategoryFilter, setProjectCategoryFilter] = useState<
+    "All" | "technology" | "real_estate" | "agriculture" | "education"
+  >("All");
+  const [projectStatusFilter, setProjectStatusFilter] = useState<
+    "All" | "active" | "pending_review" | "rejected"
+  >("All");
+  const [projectSearchQuery, setProjectSearchQuery] = useState("");
+  const [notifications, setNotifications] = useState<AdminNotification[]>([]);
+  const [rejectionReason, setRejectionReason] = useState<string>("");
+  const [rejectingId, setRejectingId] = useState<number | null>(null);
+  const [viewDocumentsOpen, setViewDocumentsOpen] = useState(false);
+  const [selectedDocuments, setSelectedDocuments] = useState<string[]>([]);
+  const [selectedDocumentTitle, setSelectedDocumentTitle] = useState<string>("View Documents");
+
+  const handleRejectClick = (notificationId: number) => {
+    setRejectingId(notificationId);
+    setRejectionReason("");
+  };
+
+  const handleSubmitRejection = async (
+    reqId: number,
+    notificationId: number
+  ) => {
+    await handleReject(reqId, notificationId, rejectionReason);
+    setRejectingId(null); // hide textarea after submission
+    setRejectionReason("");
+  };
 
   const [usersPage, setUsersPage] = useState(0);
   const [projectsPage, setProjectsPage] = useState(0);
@@ -26,8 +221,24 @@ import { useAdminPayouts } from "@/hooks/usePayoutQueries";
   const { data: usersData, isLoading: usersLoading, isFetching: usersFetching, error: usersError } = useUsers(usersParams);
   
   // Debug logging
-// ...
+  useEffect(() => {
+    console.log("usersData:", usersData);
+    console.log("usersLoading:", usersLoading);
+    console.log("usersFetching:", usersFetching);
+    console.log("usersError:", usersError);
+  }, [usersData, usersLoading, usersFetching, usersError]);
   
+  const users = usersData?.users || [];
+  const usersTotalPages = usersData?.totalPages || 0;
+  const usersTotalElements = usersData?.totalElements || 0;
+  
+  // Log errors for debugging
+  useEffect(() => {
+    if (usersError) {
+      console.error("Error fetching users:", usersError);
+    }
+  }, [usersError]);
+
   // React Query hooks for projects - Use useMemo
   const projectsParams = useMemo(() => ({
     status: projectStatusFilter === "All" 
@@ -47,7 +258,22 @@ import { useAdminPayouts } from "@/hooks/usePayoutQueries";
 
   const { data: projectsData, isLoading: projectsLoading, isFetching: projectsFetching, error: projectsError } = useProjects(projectsParams);
   
-  // ...
+  // Log errors for debugging
+  useEffect(() => {
+    if (projectsError) {
+      console.error("Error fetching projects:", projectsError);
+    }
+  }, [projectsError]);
+  const projects = (projectsData?.projects || []).map((p: any) => ({
+    id: p.id?.toString() || "",
+    name: p.title || "",
+    company: p.companyName || "",
+    category: p.category?.toLowerCase().replace(/_/g, '_') || "",
+    status: p.status?.toLowerCase() || "pending_review",
+    submittedDate: p.submittedDate || p.createdAt || new Date().toISOString()
+  }));
+  const projectsTotalPages = projectsData?.totalPages || 0;
+  const projectsTotalElements = projectsData?.totalElements || 0;
 
   // WebSocket connection for user activity monitoring (admin only)
   const { isConnected: isWebSocketConnected } = useWebSocket({
@@ -168,18 +394,20 @@ import { useAdminPayouts } from "@/hooks/usePayoutQueries";
           "An account will be created for this company and a confirmation email was sent successfully",
         title: "Success!",
         variant: "success",
+        // className: "bg-green-500 text-white",
       });
       setNotifications((prev) =>
         prev.map((noti) =>
           noti.id === notificationId ? { ...noti, isAccepted: true } : noti
         )
       );
-    } catch (ex) {
+    } catch (ex: any) {
       console.error("Error accepting signup req:", ex.message);
       toast({
         description: "Something went wrong",
         title: "Error!",
         variant: "error",
+        // className: "bg-red-500 text-white",
       });
     }
   };
@@ -295,7 +523,7 @@ import { useAdminPayouts } from "@/hooks/usePayoutQueries";
           noti.id === notificationId ? { ...noti, isAccepted: false } : noti
         )
       );
-    } catch (ex) {
+    } catch (ex: any) {
       console.error("Error rejecting signup req:", ex.message);
       toast({
         description: "Something went wrong",
