@@ -30,6 +30,7 @@ import {
   AlertCircle,
   XCircle,
   Ban,
+  Loader2,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -43,7 +44,7 @@ import {
 import { Link } from "react-router-dom";
 
 import { Checkbox } from "@radix-ui/react-checkbox";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/api/common/apiClient";
 import { ResponsePayload } from "@/lib/types";
 import { toast } from "@/hooks/use-toast";
@@ -54,7 +55,7 @@ import { Circle } from "lucide-react";
 import ViewDocumentsDialog from "@/components/ViewDocumentsDialog";
 import { AdminNotification } from "@/lib/types";
 import { PayoutHistory } from "@/components/PayoutHistory";
-import { useAdminAnalytics, usePendingInvestorApprovals, useUpdateInvestorKyc } from "@/hooks/useAdminQueries";
+import { useAdminAnalytics, usePendingInvestorApprovals, useUpdateInvestorKyc, useUsers, useProjects, adminKeys } from "@/hooks/useAdminQueries";
 import { useAdminPayouts } from "@/hooks/usePayoutQueries";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -166,6 +167,7 @@ const mockMetrics = {
 const AdminDashboard = () => {
   const { isAuthenticated, role } = useAuth();
   const isAdmin = role === 'Admin';
+  const queryClient = useQueryClient();
   
   const [userSearchQuery, setUserSearchQuery] = useState("");
   const [userRoleFilter, setUserRoleFilter] = useState<
@@ -204,116 +206,83 @@ const AdminDashboard = () => {
     setRejectionReason("");
   };
 
-  const [users, setUsers] = useState<any[]>([]);
-  const [usersLoading, setUsersLoading] = useState(false);
   const [usersPage, setUsersPage] = useState(0);
-  const [usersTotalPages, setUsersTotalPages] = useState(0);
-  const [usersTotalElements, setUsersTotalElements] = useState(0);
-
-  const [projects, setProjects] = useState<any[]>([]);
-  const [projectsLoading, setProjectsLoading] = useState(false);
   const [projectsPage, setProjectsPage] = useState(0);
-  const [projectsTotalPages, setProjectsTotalPages] = useState(0);
-  const [projectsTotalElements, setProjectsTotalElements] = useState(0);
 
-  // Fetch users
+  // React Query hooks for users
+  const usersParams = {
+    role: userRoleFilter !== "All" ? userRoleFilter.toUpperCase() as "INVESTOR" | "COMPANY" | "ADMIN" : undefined,
+    status: userStatusFilter !== "All" ? userStatusFilter as "active" | "inactive" | "locked" : undefined,
+    search: userSearchQuery || undefined,
+    page: usersPage,
+    size: 20,
+  };
+  const { data: usersData, isLoading: usersLoading, isFetching: usersFetching, error: usersError } = useUsers(usersParams);
+  
+  // Debug logging
   useEffect(() => {
-    const fetchUsers = async () => {
-      setUsersLoading(true);
-      try {
-        const params = new URLSearchParams();
-        if (userRoleFilter !== "All") params.append("role", userRoleFilter.toUpperCase());
-        if (userStatusFilter !== "All") params.append("status", userStatusFilter);
-        if (userSearchQuery) params.append("search", userSearchQuery);
-        params.append("page", usersPage.toString());
-        params.append("size", "20");
-
-        const response = await apiClient.get<ResponsePayload>(`/admin/users?${params.toString()}`, {
-          timeout: 30000, // 30 seconds for admin users endpoint
-        });
-        if (response.data.status === 200) {
-          const data = response.data.data;
-          setUsers(data.users || []);
-          setUsersTotalPages(data.totalPages || 0);
-          setUsersTotalElements(data.totalElements || 0);
-        }
-      } catch (error) {
-        console.error("Error fetching users:", error);
-        setUsers([]);
-      } finally {
-        setUsersLoading(false);
-      }
-    };
-
-    fetchUsers();
-  }, [userRoleFilter, userStatusFilter, userSearchQuery, usersPage]);
-
-  // Fetch projects
+    console.log("usersData:", usersData);
+    console.log("usersLoading:", usersLoading);
+    console.log("usersFetching:", usersFetching);
+    console.log("usersError:", usersError);
+  }, [usersData, usersLoading, usersFetching, usersError]);
+  
+  const users = usersData?.users || [];
+  const usersTotalPages = usersData?.totalPages || 0;
+  const usersTotalElements = usersData?.totalElements || 0;
+  
+  // Log errors for debugging
   useEffect(() => {
-    const fetchProjects = async () => {
-      setProjectsLoading(true);
-      try {
-        const params = new URLSearchParams();
-        if (projectStatusFilter === "All") {
-          // Send "ALL" explicitly to backend to return all statuses
-          params.append("status", "ALL");
-        } else {
-          const statusMap: Record<string, string> = {
-            "pending_review": "PENDING_REVIEW",
-            "active": "APPROVED",
-            "rejected": "REJECTED"
-          };
-          params.append("status", statusMap[projectStatusFilter] || "PENDING_REVIEW");
-        }
-        if (projectCategoryFilter !== "All") {
-          params.append("category", projectCategoryFilter.toUpperCase().replace(/\s+/g, '_'));
-        }
-        if (projectSearchQuery) params.append("search", projectSearchQuery);
-        params.append("page", projectsPage.toString());
-        params.append("size", "20");
+    if (usersError) {
+      console.error("Error fetching users:", usersError);
+    }
+  }, [usersError]);
 
-        const response = await apiClient.get<ResponsePayload>(`/admin/projects/pending?${params.toString()}`);
-        if (response.data.status === 200) {
-          const data = response.data.data;
-          const mappedProjects = (data.projects || []).map((p: any) => ({
-            id: p.id?.toString() || "",
-            name: p.title || "",
-            company: p.companyName || "",
-            category: p.category?.toLowerCase().replace(/_/g, '_') || "",
-            status: p.status?.toLowerCase() || "pending_review",
-            submittedDate: p.submittedDate || p.createdAt || new Date().toISOString()
-          }));
-          setProjects(mappedProjects);
-          setProjectsTotalPages(data.totalPages || 0);
-          setProjectsTotalElements(data.totalElements || 0);
-        }
-      } catch (error) {
-        console.error("Error fetching projects:", error);
-        setProjects([]);
-      } finally {
-        setProjectsLoading(false);
-      }
-    };
-
-    fetchProjects();
-  }, [projectStatusFilter, projectCategoryFilter, projectSearchQuery, projectsPage]);
+  // React Query hooks for projects
+  const projectsParams = {
+    status: projectStatusFilter === "All" 
+      ? "ALL" as const
+      : (projectStatusFilter === "pending_review" 
+          ? "PENDING_REVIEW" as const
+          : projectStatusFilter === "active"
+          ? "APPROVED" as const
+          : "REJECTED" as const),
+    category: projectCategoryFilter !== "All" 
+      ? projectCategoryFilter.toUpperCase().replace(/\s+/g, '_')
+      : undefined,
+    search: projectSearchQuery || undefined,
+    page: projectsPage,
+    size: 20,
+  };
+  const { data: projectsData, isLoading: projectsLoading, isFetching: projectsFetching, error: projectsError } = useProjects(projectsParams);
+  
+  // Log errors for debugging
+  useEffect(() => {
+    if (projectsError) {
+      console.error("Error fetching projects:", projectsError);
+    }
+  }, [projectsError]);
+  const projects = (projectsData?.projects || []).map((p: any) => ({
+    id: p.id?.toString() || "",
+    name: p.title || "",
+    company: p.companyName || "",
+    category: p.category?.toLowerCase().replace(/_/g, '_') || "",
+    status: p.status?.toLowerCase() || "pending_review",
+    submittedDate: p.submittedDate || p.createdAt || new Date().toISOString()
+  }));
+  const projectsTotalPages = projectsData?.totalPages || 0;
+  const projectsTotalElements = projectsData?.totalElements || 0;
 
   // WebSocket connection for user activity monitoring (admin only)
   const { isConnected: isWebSocketConnected } = useWebSocket({
     enabled: isAdmin && isAuthenticated,
     onUserActivity: (message) => {
-      // Update user's online status when activity message is received
-      setUsers((prevUsers) =>
-        prevUsers.map((user) =>
-          user.id === message.userId
-            ? {
-                ...user,
-                isOnline: message.isOnline,
-                lastSeen: message.lastSeen,
-              }
-            : user
-        )
-      );
+      // Update user's online status in React Query cache when activity message is received
+      // Invalidate users query to refetch with updated online status
+      queryClient.invalidateQueries({ 
+        queryKey: adminKeys.all,
+        exact: false 
+      });
     },
     onConnect: () => {
       // WebSocket connected - user will be marked online via heartbeat
@@ -969,10 +938,32 @@ const AdminDashboard = () => {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {usersLoading ? (
+                        {usersLoading || usersFetching ? (
+                          <TableRow>
+                            <TableCell colSpan={8} className="text-center py-8">
+                              <div className="flex flex-col items-center justify-center gap-2">
+                                <Loader2 className="h-6 w-6 animate-spin text-lebanese-navy" />
+                                <span className="text-sm text-gray-500">Loading users...</span>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ) : usersError ? (
                           <TableRow>
                             <TableCell colSpan={8} className="text-center py-6">
-                              Loading users...
+                              <div className="flex flex-col items-center justify-center gap-2 text-red-600">
+                                <AlertCircle className="h-5 w-5" />
+                                <span className="text-sm">
+                                  Error loading users: {usersError instanceof Error ? usersError.message : "Unknown error"}
+                                </span>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => window.location.reload()}
+                                  className="mt-2"
+                                >
+                                  Retry
+                                </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         ) : filteredUsers.length > 0 ? (
@@ -1033,8 +1024,8 @@ const AdminDashboard = () => {
                                         description: `User ${newStatus === "active" ? "activated" : "deactivated"} successfully`,
                                         variant: "success",
                                       });
-                                      // Refresh users
-                                      setUsersPage(0);
+                                      // Invalidate and refetch users query
+                                      queryClient.invalidateQueries({ queryKey: adminKeys.users(usersParams) });
                                     } catch (error: any) {
                                       toast({
                                         title: "Error",
@@ -1079,7 +1070,7 @@ const AdminDashboard = () => {
                           variant="outline"
                           size="sm"
                           onClick={() => setUsersPage(prev => prev + 1)}
-                          disabled={usersPage >= usersTotalPages - 1 || usersLoading}
+                          disabled={usersPage >= usersTotalPages - 1 || usersLoading || usersFetching}
                         >
                           Next
                         </Button>
@@ -1181,10 +1172,32 @@ const AdminDashboard = () => {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {projectsLoading ? (
+                        {projectsLoading || projectsFetching ? (
+                          <TableRow>
+                            <TableCell colSpan={7} className="text-center py-8">
+                              <div className="flex flex-col items-center justify-center gap-2">
+                                <Loader2 className="h-6 w-6 animate-spin text-lebanese-navy" />
+                                <span className="text-sm text-gray-500">Loading projects...</span>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ) : projectsError ? (
                           <TableRow>
                             <TableCell colSpan={7} className="text-center py-6">
-                              Loading projects...
+                              <div className="flex flex-col items-center justify-center gap-2 text-red-600">
+                                <AlertCircle className="h-5 w-5" />
+                                <span className="text-sm">
+                                  Error loading projects: {projectsError instanceof Error ? projectsError.message : "Unknown error"}
+                                </span>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => window.location.reload()}
+                                  className="mt-2"
+                                >
+                                  Retry
+                                </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         ) : filteredProjects.length > 0 ? (
@@ -1244,7 +1257,7 @@ const AdminDashboard = () => {
                           variant="outline"
                           size="sm"
                           onClick={() => setProjectsPage(prev => Math.max(0, prev - 1))}
-                          disabled={projectsPage === 0 || projectsLoading}
+                          disabled={projectsPage === 0 || projectsLoading || projectsFetching}
                         >
                           Previous
                         </Button>
@@ -1252,7 +1265,7 @@ const AdminDashboard = () => {
                           variant="outline"
                           size="sm"
                           onClick={() => setProjectsPage(prev => prev + 1)}
-                          disabled={projectsPage >= projectsTotalPages - 1 || projectsLoading}
+                          disabled={projectsPage >= projectsTotalPages - 1 || projectsLoading || projectsFetching}
                         >
                           Next
                         </Button>

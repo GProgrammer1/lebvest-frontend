@@ -4,8 +4,12 @@ import {
   fetchPendingCompanyApprovals,
   fetchPendingInvestorApprovals,
   updateInvestorKyc,
+  fetchUsers,
+  fetchProjects,
   AdminAnalyticsDto,
   InvestorKycUpdateRequest,
+  FetchUsersParams,
+  FetchProjectsParams,
 } from "@/api/admin";
 
 export const adminKeys = {
@@ -13,6 +17,8 @@ export const adminKeys = {
   analytics: () => [...adminKeys.all, "analytics"] as const,
   companyApprovals: (page: number, size: number) => [...adminKeys.all, "company-approvals", page, size] as const,
   investorApprovals: (page: number, size: number) => [...adminKeys.all, "investor-approvals", page, size] as const,
+  users: (params: FetchUsersParams) => [...adminKeys.all, "users", params] as const,
+  projects: (params: FetchProjectsParams) => [...adminKeys.all, "projects", params] as const,
 };
 
 export const useAdminAnalytics = () => {
@@ -47,5 +53,31 @@ export const useUpdateInvestorKyc = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: adminKeys.investorApprovals(0, 20) });
     },
+  });
+};
+
+export const useUsers = (params: FetchUsersParams = {}) => {
+  return useQuery({
+    queryKey: adminKeys.users(params),
+    queryFn: () => fetchUsers(params),
+    staleTime: 1000 * 60, // 1 minute
+    gcTime: 1000 * 60 * 5, // 5 minutes (formerly cacheTime)
+    retry: 2, // Retry failed requests 2 times
+    retryDelay: 1000, // Wait 1 second between retries
+    refetchOnWindowFocus: false, // Don't refetch on window focus
+    refetchOnMount: true, // Always refetch on mount
+  });
+};
+
+export const useProjects = (params: FetchProjectsParams = {}) => {
+  return useQuery({
+    queryKey: adminKeys.projects(params),
+    queryFn: () => fetchProjects(params),
+    staleTime: 1000 * 60, // 1 minute
+    gcTime: 1000 * 60 * 5, // 5 minutes (formerly cacheTime)
+    retry: 2, // Retry failed requests 2 times
+    retryDelay: 1000, // Wait 1 second between retries
+    refetchOnWindowFocus: false, // Don't refetch on window focus
+    refetchOnMount: true, // Always refetch on mount
   });
 };
