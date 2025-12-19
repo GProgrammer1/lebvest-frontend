@@ -1,73 +1,156 @@
-# Welcome to your Lovable project
+# LebVest Frontend
 
-## Project info
+A modern investment platform frontend connecting investors with companies and projects in Lebanon. LebVest provides a comprehensive platform for investment opportunities, portfolio management, and real-time updates.
 
-**URL**: https://lovable.dev/projects/241ef5d6-7e22-4beb-aaef-96b56d5062ea
+## 🚀 Features
 
-## How can I edit this code?
+### For Investors
+- Browse and filter investment opportunities across multiple categories
+- View detailed investment information with AI-powered predictions
+- Manage investment portfolio and track returns
+- Set investment goals and preferences
+- Real-time notifications for new opportunities and updates
+- Compare investor profiles and performance
+- Secure payment processing via Stripe
+- Interactive chatbot for assistance
 
-There are several ways of editing your application.
+### For Companies
+- List and manage investment projects
+- Company verification and profile management
+- Track funding progress and investor engagement
+- Upload and manage project documents
+- Financial reporting and analytics
 
-**Use Lovable**
+### For Administrators
+- User management and verification
+- Project proposal review and approval
+- System statistics and monitoring
+- Notification management
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/241ef5d6-7e22-4beb-aaef-96b56d5062ea) and start prompting.
+## 🛠️ Tech Stack
 
-Changes made via Lovable will be committed automatically to this repo.
+- **Framework**: React 18 with TypeScript
+- **Build Tool**: Vite
+- **Routing**: React Router DOM
+- **State Management**: Zustand
+- **Data Fetching**: TanStack Query (React Query)
+- **UI Components**: shadcn/ui (Radix UI primitives)
+- **Styling**: Tailwind CSS
+- **Forms**: React Hook Form with Zod validation
+- **Payments**: Stripe
+- **Real-time**: WebSocket (STOMP over SockJS)
+- **Charts**: Recharts
+- **Notifications**: Sonner (Toast notifications)
 
-**Use your preferred IDE**
+## 📋 Prerequisites
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+- Node.js 18+ and npm (or use [nvm](https://github.com/nvm-sh/nvm#installing-and-updating))
+- Git
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## 🚀 Getting Started
 
-Follow these steps:
+### Installation
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
+1. Clone the repository:
+```bash
 git clone <YOUR_GIT_URL>
+cd lebvest-frontend
+```
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+2. Install dependencies:
+```bash
+npm install
+```
 
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+3. Start the development server:
+```bash
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+The application will be available at `http://localhost:3000`
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### Available Scripts
 
-**Use GitHub Codespaces**
+- `npm run dev` - Start development server with hot reload
+- `npm run build` - Build for production
+- `npm run build:dev` - Build in development mode
+- `npm run preview` - Preview production build locally
+- `npm run lint` - Run ESLint
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## 📁 Project Structure
 
-## What technologies are used for this project?
+```
+src/
+├── api/              # API client and endpoint definitions
+│   ├── admin.ts
+│   ├── company.ts
+│   ├── investment.ts
+│   ├── investor.ts
+│   ├── payout.ts
+│   └── common/
+│       └── apiClient.ts
+├── components/        # React components
+│   ├── ui/           # shadcn/ui components
+│   └── ...           # Feature components
+├── hooks/            # Custom React hooks
+├── lib/              # Utilities and configurations
+├── pages/            # Page components
+├── services/         # External service integrations
+├── store/            # Zustand stores
+└── util/             # Utility functions
+```
 
-This project is built with:
+## 🔑 Key Features Implementation
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+### Authentication
+- JWT-based authentication
+- Role-based access control (Investor, Company, Admin)
+- Password reset functionality
 
-## How can I deploy this project?
+### Investment Management
+- Multi-step investment modal
+- Investment filtering and search
+- Document viewing and management
+- AI-powered investment predictions
 
-Simply open [Lovable](https://lovable.dev/projects/241ef5d6-7e22-4beb-aaef-96b56d5062ea) and click on Share -> Publish.
+### Real-time Updates
+- WebSocket integration for live notifications
+- Real-time investment updates
 
-## Can I connect a custom domain to my Lovable project?
+### Payment Processing
+- Stripe integration for secure payments
+- Payment success tracking
 
-Yes, you can!
+## 🌐 Environment Variables
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+Create a `.env` file in the root directory with the following variables:
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+```env
+VITE_API_BASE_URL=your_api_url
+VITE_STRIPE_PUBLIC_KEY=your_stripe_key
+VITE_WS_URL=your_websocket_url
+```
+
+## 🧪 Development
+
+### Code Style
+- ESLint is configured for code quality
+- TypeScript for type safety
+- Follow React best practices and hooks patterns
+
+### Component Development
+- Use shadcn/ui components from `src/components/ui/`
+- Follow the existing component structure
+- Implement proper error boundaries
+
+## 📝 License
+
+[Add your license information here]
+
+## 🤝 Contributing
+
+[Add contribution guidelines here]
+
+## 📧 Contact
+
+[Add contact information here]
